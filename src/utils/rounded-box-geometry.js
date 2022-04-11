@@ -81,7 +81,7 @@ export class RoundedBoxGeometry {
 
         //construct 1/8 sphere ==============================
 
-        let PIhalf = Math.PI / 2;
+        let PIhalf = (Math.PI / 2);
 
         let cornerOffset = vec3.fromValues( edgeHalfWidth , edgeHalfHeight , edgeHalfDepth );
 
@@ -108,7 +108,6 @@ export class RoundedBoxGeometry {
                 vertexPool.push( vert );
                 
                 let norm = vec3.normalize(vec3.create(), vertex);
-                norm = this.#roundNorm(norm);
 
                 cornerNormals[0].push( norm );
 
@@ -141,7 +140,6 @@ export class RoundedBoxGeometry {
                 //sphere already normalized, just clone
 
                 let norm = vec3.normalize(vec3.create(), vertex);
-                norm = this.#roundNorm(norm);
 
                 cornerNormals[0].push( norm );
                 normalPool.push( norm );
@@ -473,16 +471,9 @@ export class RoundedBoxGeometry {
     
         //fill buffers ======================================
     
-        let index = 0;
-    
         for ( let i = 0 ; i < vertexPool.length ; i ++ ){
-    
-            positions.set(vertexPool[i], index * 3);
-    
-            normals.set(normalPool[i], index * 3);
-    
-            index++;
-    
+            positions.set(vertexPool[i], i * 3);
+            normals.set(normalPool[i], i * 3);
         }
     
         this.vertices = positions;
@@ -491,21 +482,4 @@ export class RoundedBoxGeometry {
         this.count = indices.length;
         
     };
-
-    #roundNorm(i) {
-        return vec3.fromValues(
-            this.#roundNormValue(i[0]),
-            this.#roundNormValue(i[1]),
-            this.#roundNormValue(i[2])
-        )
-    }
-
-    #roundNormValue(v) {
-        const e = 0.0001;
-        if (Math.abs(v) < e || (1 - Math.abs(v)) < e) {
-            return Math.round(v);
-        } else {
-            return v;
-        }
-    }
 }

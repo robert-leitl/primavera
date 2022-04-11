@@ -59,7 +59,7 @@ export class ArcballControl {
         const axis = vec3.cross(vec3.create(), p, q);
         vec3.normalize(axis, axis);
         const d = Math.min(1, Math.max(-1, vec3.dot(np, nq)));
-        const angle = Math.acos(d) * timeScale * 2;
+        const angle = Math.acos(d) * timeScale * 3;
         const r = quat.setAxisAngle(quat.create(), axis, angle);
         quat.multiply(this.rotationQuat, r, this.rotationQuat);
         quat.normalize(this.rotationQuat, this.rotationQuat);

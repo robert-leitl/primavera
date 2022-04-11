@@ -6,6 +6,7 @@ import { RoundedBoxGeometry } from './utils/rounded-box-geometry';
 import colorVertShaderSource from './shader/color.vert';
 import colorFragShaderSource from './shader/color.frag';
 import { ArcballControl, PointerRotateControl } from './utils/arcball-control';
+import { VesselGeometry } from './utils/vessel-geometry';
 
 export class Primavera {
     oninit;
@@ -74,7 +75,7 @@ export class Primavera {
         gl.useProgram(this.colorProgram);
         gl.enable(gl.CULL_FACE);
         gl.enable(gl.DEPTH_TEST);
-        gl.clearColor(0, 0, 0, 1);
+        gl.clearColor(1, 1, 1, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.uniformMatrix4fv(this.colorLocations.u_viewMatrix, false, this.drawUniforms.u_viewMatrix);
         gl.uniformMatrix4fv(this.colorLocations.u_projectionMatrix, false, this.drawUniforms.u_projectionMatrix);
@@ -133,17 +134,19 @@ export class Primavera {
         const VESSEL_HEIGHT = 50;
         const VESSEL_MIN_RADIUS = 20;
         const VESSEL_MAX_RADIUS = 35;
-        this.capsuleGeometry = new RoundedBoxGeometry(VESSEL_MAX_RADIUS, VESSEL_HEIGHT, VESSEL_MAX_RADIUS, VESSEL_MAX_RADIUS - VESSEL_MIN_RADIUS, 10);
+        this.vesselGeometry = new RoundedBoxGeometry(VESSEL_MAX_RADIUS, VESSEL_HEIGHT, VESSEL_MAX_RADIUS, VESSEL_MAX_RADIUS - VESSEL_MIN_RADIUS, 4);
+        this.vesselGeometry = new VesselGeometry();
+        console.log(this.vesselGeometry);
 
         this.capsuleBuffers = { 
-            position: makeBuffer(gl, this.capsuleGeometry.vertices, gl.STATIC_DRAW),
-            normal: makeBuffer(gl, this.capsuleGeometry.normals, gl.STATIC_DRAW),
-            numElem: this.capsuleGeometry.count
+            position: makeBuffer(gl, this.vesselGeometry.vertices, gl.STATIC_DRAW),
+            normal: makeBuffer(gl, this.vesselGeometry.normals, gl.STATIC_DRAW),
+            numElem: this.vesselGeometry.indices.length
         };
         this.capsuleVAO = makeVertexArray(gl, [
             [this.capsuleBuffers.position, this.colorLocations.a_position, 3],
             [this.capsuleBuffers.normal, this.colorLocations.a_normal, 3]
-        ], this.capsuleGeometry.indices);
+        ], this.vesselGeometry.indices);
 
         /////////////////////////////////// FRAMEBUFFER SETUP
 

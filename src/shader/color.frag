@@ -24,4 +24,5 @@ void main() {
     float NdL = max(0., dot(N, L));
 
     outColor = vec4(NdL + 0.2, 0., 0., 1.);
+    outColor = vec4(N, 1.);
 }

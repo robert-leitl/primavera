@@ -108,6 +108,7 @@ export class RoundedBoxGeometry {
                 vertexPool.push( vert );
                 
                 let norm = vec3.normalize(vec3.create(), vertex);
+                norm = this.#roundNorm(norm);
 
                 cornerNormals[0].push( norm );
 
@@ -139,7 +140,8 @@ export class RoundedBoxGeometry {
                 
                 //sphere already normalized, just clone
 
-                let norm = vec3.normalize(vec3.create(), vec3.clone(vertex));
+                let norm = vec3.normalize(vec3.create(), vertex);
+                norm = this.#roundNorm(norm);
 
                 cornerNormals[0].push( norm );
                 normalPool.push( norm );
@@ -489,4 +491,21 @@ export class RoundedBoxGeometry {
         this.count = indices.length;
         
     };
+
+    #roundNorm(i) {
+        return vec3.fromValues(
+            this.#roundNormValue(i[0]),
+            this.#roundNormValue(i[1]),
+            this.#roundNormValue(i[2])
+        )
+    }
+
+    #roundNormValue(v) {
+        const e = 0.0001;
+        if (Math.abs(v) < e || (1 - Math.abs(v)) < e) {
+            return Math.round(v);
+        } else {
+            return v;
+        }
+    }
 }

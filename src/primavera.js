@@ -1,10 +1,11 @@
-import { mat4, quat, vec2, vec3 } from 'gl-matrix';
+import { mat3, mat4, quat, vec2, vec3 } from 'gl-matrix';
 import { OrbitControl } from './utils/orbit-control';
 import { createAndSetupTexture, createFramebuffer, createProgram, makeBuffer, makeVertexArray, resizeCanvasToDisplaySize, setFramebuffer } from './utils/webgl-utils';
 import { RoundedBoxGeometry } from './utils/rounded-box-geometry';
 
 import colorVertShaderSource from './shader/color.vert';
 import colorFragShaderSource from './shader/color.frag';
+import { ArcballControl, PointerRotateControl } from './utils/arcball-control';
 
 export class Primavera {
     oninit;
@@ -56,6 +57,7 @@ export class Primavera {
         if (this.#isDestroyed) return;
 
         this.control.update(this.#deltaTime);
+        mat4.fromQuat(this.drawUniforms.u_worldMatrix, this.control.rotationQuat);
 
         this.#render();
 
@@ -125,14 +127,14 @@ export class Primavera {
             u_worldInverseTransposeMatrix: mat4.create()
         };
 
-        mat4.rotate(this.drawUniforms.u_worldMatrix, this.drawUniforms.u_worldMatrix, 0, [1, 0, 0]);
-        mat4.scale(this.drawUniforms.u_worldMatrix, this.drawUniforms.u_worldMatrix, [30, 30, 30]);
-        mat4.translate(this.drawUniforms.u_worldMatrix, this.drawUniforms.u_worldMatrix, [0, 0, 0]);
-
         /////////////////////////////////// GEOMETRY / MESH SETUP
 
         // create capsule VAO
-        this.capsuleGeometry = new RoundedBoxGeometry(1, 2, 1, .5, 20);
+        const VESSEL_HEIGHT = 50;
+        const VESSEL_MIN_RADIUS = 20;
+        const VESSEL_MAX_RADIUS = 35;
+        this.capsuleGeometry = new RoundedBoxGeometry(VESSEL_MAX_RADIUS, VESSEL_HEIGHT, VESSEL_MAX_RADIUS, VESSEL_MAX_RADIUS - VESSEL_MIN_RADIUS, 10);
+
         this.capsuleBuffers = { 
             position: makeBuffer(gl, this.capsuleGeometry.vertices, gl.STATIC_DRAW),
             normal: makeBuffer(gl, this.capsuleGeometry.normals, gl.STATIC_DRAW),
@@ -154,13 +156,17 @@ export class Primavera {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.particleFBOSize[0], this.particleFBOSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
         this.particleFBO = createFramebuffer(gl, [this.particleTexture]);
 
+        // init the pointer rotate control
+        this.control = new ArcballControl(this.canvas);
+
         this.resize();
 
         //this.#initEnvMap();
+        this.camera.position[2] = this.camera.distance;
         this.#updateCameraMatrix();
         this.#updateProjectionMatrix(gl);
 
-        this.#initOrbitControls();
+        //this.#initOrbitControls();
         this.#initTweakpane();
 
         if (this.oninit) this.oninit(this);

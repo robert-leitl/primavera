@@ -5,7 +5,7 @@ precision highp float;
 uniform float u_frames;
 
 in vec3 v_position;
-in vec3 v_normal;
+flat in vec3 v_normal;
 in vec3 v_viewNormal;
 in vec2 v_uv;
 in vec3 v_surfaceToView;

@@ -230,11 +230,11 @@ export class Primavera {
                 minValue: 0
             });
 
-            /*const cameraFolder = this.pane.addFolder({ title: 'Camera' });
+            const cameraFolder = this.pane.addFolder({ title: 'Camera' });
             this.#createTweakpaneSlider(cameraFolder, this.camera, 'near', 'near', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
             this.#createTweakpaneSlider(cameraFolder, this.camera, 'far', 'far', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
 
-            const particlesFolder = this.pane.addFolder({ title: 'Particles' });
+            /*const particlesFolder = this.pane.addFolder({ title: 'Particles' });
             this.#createTweakpaneSlider(particlesFolder, this.particles.settings, 'velocity', 'velocity', 0, 10, null);
             this.#createTweakpaneSlider(particlesFolder, this.particles.settings, 'curl', 'curl', 0, 10, null);
             this.#createTweakpaneSlider(particlesFolder, this.particles.settings, 'noise', 'noise', 0, 10, null);

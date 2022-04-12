@@ -135,12 +135,10 @@ export class Primavera {
         /////////////////////////////////// GEOMETRY / MESH SETUP
 
         // create capsule VAO
-        const VESSEL_HEIGHT = 50;
-        const VESSEL_MIN_RADIUS = 20;
-        const VESSEL_MAX_RADIUS = 35;
-        this.vesselGeometry = new RoundedBoxGeometry(VESSEL_MAX_RADIUS, VESSEL_HEIGHT, VESSEL_MAX_RADIUS, VESSEL_MAX_RADIUS - VESSEL_MIN_RADIUS, 4);
-        this.vesselGeometry = new VesselGeometry();
-        console.log(this.vesselGeometry);
+        this.VESSEL_HEIGHT = 50;
+        this.VESSEL_RADIUS = 20;
+        this.VESSEL_BEVEL_RADIUS = 13;
+        this.vesselGeometry = new VesselGeometry(this.VESSEL_HEIGHT, this.VESSEL_RADIUS, this.VESSEL_BEVEL_RADIUS);
 
         this.capsuleBuffers = { 
             position: makeBuffer(gl, this.vesselGeometry.vertices, gl.STATIC_DRAW),

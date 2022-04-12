@@ -19,13 +19,25 @@ export class VesselGeometry {
     #normals = [];
 
     constructor(
-        
+        height = 50,
+        radius = 20,
+        bevelRadius = 13,
+        radiusSegments = 32,
+        bevelSegments = 8,
+        normalBendFactor = 1.5
     ) {
+        this.height = height;
+        this.radius = radius;
+        this.bevelRadius = bevelRadius;
+        history.radiusSegments = radiusSegments;
+        this.bevelSegments = bevelSegments;
+        this.normalBendFactor = normalBendFactor;
+
         this.#halfHeight = this.height / 2;
         this.#innerRadius = this.radius - this.bevelRadius;
         this.#radiusStepAngle = (2 * Math.PI) / this.radiusSegments;
         this.#bevelStepAngle = (Math.PI * .5) / (this.bevelSegments + 1);
-        this.#bevelNormalAngleOffset = this.#bevelStepAngle * 1.5;
+        this.#bevelNormalAngleOffset = this.#bevelStepAngle * this.normalBendFactor;
         this.#bevelNormalStepAngle = (Math.PI * .5 - 2 * this.#bevelNormalAngleOffset) / (this.bevelSegments + 1);
 
         this.#generateCap(true);

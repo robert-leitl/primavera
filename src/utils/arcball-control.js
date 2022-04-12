@@ -41,35 +41,46 @@ export class ArcballControl {
     update(deltaTime) {
         const timeScale = 16 / (deltaTime + 0.01);
 
-        if (this.pointerDown) {
-            const speed = 0.2 * timeScale;
-        } else {
-            const decc = 0.96 / Math.max(.5 * timeScale, 1);
-        }
-
+        // the mouse follower
         const damping = 10 * timeScale;
         this.followPos[0] += (this.pointerPos[0] - this.followPos[0]) / damping;
         this.followPos[1] += (this.pointerPos[1] - this.followPos[1]) / damping;
 
+        // get points on the arcball and corresponding normals
         const p = this.#project(this.followPos);
         const q = this.#project(this.prevFollowPos);
         const np = vec3.normalize(vec3.create(), p);
         const nq = vec3.normalize(vec3.create(), q);
 
+        // get the normalized axis of rotation
         const axis = vec3.cross(vec3.create(), p, q);
         vec3.normalize(axis, axis);
-        const d = Math.min(1, Math.max(-1, vec3.dot(np, nq)));
-        const angle = Math.acos(d) * timeScale * 3;
+
+        // get the amount of rotation
+        const d = Math.max(-1, Math.min(1, vec3.dot(np, nq)));
+        const angle = Math.acos(d) * timeScale * 5;
+
+        // get the new rotation quat
         const r = quat.setAxisAngle(quat.create(), axis, angle);
+
+        // apply the new rotation to the current rotation and normalize
         quat.multiply(this.rotationQuat, r, this.rotationQuat);
         quat.normalize(this.rotationQuat, this.rotationQuat);
 
-
+        // update for the next iteration
         this.prevFollowPos = vec3.clone(this.followPos);
         this.updateCallback();
     }
 
-    // https://www.xarg.org/2021/07/trackball-rotation-using-quaternions/
+    /**
+     * Maps pointer coordinates to canonical coordinates [-1, 1] 
+     * and projects them onto the arcball surface or onto a 
+     * hyperbolical function outside the arcball.
+     * 
+     * @return vec3 The arcball coords
+     * 
+     * @see https://www.xarg.org/2021/07/trackball-rotation-using-quaternions/
+     */
     #project(pos) {
         const r = 1; // arcball radius
         const w = this.canvas.clientWidth;

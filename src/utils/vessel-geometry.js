@@ -18,6 +18,18 @@ export class VesselGeometry {
     #indices = [];
     #normals = [];
 
+    /**
+     * Creates a new vessel geometry which is a normal cylinder
+     * with beveled edges.
+     * 
+     * @param {number} height the height of the cylinder
+     * @param {number} radius the radius of the cylinder
+     * @param {number} bevelRadius the radius of the bevel
+     * @param {number} radiusSegments the radial segments of the cylinder
+     * @param {number} bevelSegments the segments of the bevel. set to 0 to create a chamfer edge.
+     * @param {number} normalBendFactor this factor bends the normals from
+     * the flat surfaces towards the bevel. 
+     */
     constructor(
         height = 50,
         radius = 20,

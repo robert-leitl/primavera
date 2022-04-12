@@ -51,7 +51,7 @@ export function makeVertexArray(gl, bufLocNumElmPairs, indices) {
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(
             loc,      // attribute location
-            numElem,        // number of elements
+            numElem,  // number of elements
             gl.FLOAT, // type of data
             false,    // normalize
             0,        // stride (0 = auto)

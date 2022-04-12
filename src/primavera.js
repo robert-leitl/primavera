@@ -1,12 +1,12 @@
 import { mat3, mat4, quat, vec2, vec3 } from 'gl-matrix';
 import { OrbitControl } from './utils/orbit-control';
 import { createAndSetupTexture, createFramebuffer, createProgram, makeBuffer, makeVertexArray, resizeCanvasToDisplaySize, setFramebuffer } from './utils/webgl-utils';
-import { RoundedBoxGeometry } from './utils/rounded-box-geometry';
 
 import colorVertShaderSource from './shader/color.vert';
 import colorFragShaderSource from './shader/color.frag';
-import { ArcballControl, PointerRotateControl } from './utils/arcball-control';
+import { ArcballControl } from './utils/arcball-control';
 import { VesselGeometry } from './utils/vessel-geometry';
+import { Plant } from './plant';
 
 export class Primavera {
     oninit;
@@ -60,6 +60,8 @@ export class Primavera {
         this.control.update(this.#deltaTime);
         mat4.fromQuat(this.drawUniforms.u_worldMatrix, this.control.rotationQuat);
 
+        this.plant.update(this.#deltaTime);
+
         this.#render();
 
         this.fpsGraph.end();
@@ -87,10 +89,8 @@ export class Primavera {
         gl.uniformMatrix4fv(this.colorLocations.u_worldInverseTransposeMatrix, false, worldInverseTransposeMatrix);
         gl.bindVertexArray(this.capsuleVAO);
         gl.drawElements(gl.TRIANGLES, this.capsuleBuffers.numElem, gl.UNSIGNED_SHORT, 0);
-        /*gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_COLOR, gl.ZERO);
-        gl.drawElements(gl.LINES, this.capsuleBuffers.numElem, gl.UNSIGNED_SHORT, 0);
-        gl.disable(gl.BLEND);*/
+
+        this.plant.render();
     }
 
     destroy() {
@@ -134,7 +134,7 @@ export class Primavera {
 
         /////////////////////////////////// GEOMETRY / MESH SETUP
 
-        // create capsule VAO
+        // create vessel VAO
         this.VESSEL_HEIGHT = 50;
         this.VESSEL_RADIUS = 20;
         this.VESSEL_BEVEL_RADIUS = 13;
@@ -149,6 +149,15 @@ export class Primavera {
             [this.capsuleBuffers.position, this.colorLocations.a_position, 3],
             [this.capsuleBuffers.normal, this.colorLocations.a_normal, 3]
         ], this.vesselGeometry.indices);
+
+        // create the plant
+        this.plant = new Plant(
+            this,
+            this.VESSEL_HEIGHT, 
+            this.VESSEL_RADIUS, 
+            this.VESSEL_BEVEL_RADIUS
+        );
+        this.plant.generate();
 
         /////////////////////////////////// FRAMEBUFFER SETUP
 
@@ -244,6 +253,9 @@ export class Primavera {
             const refractionFolder = this.pane.addFolder({ title: 'Refraction' });
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'strength', 'strength', 0, 1, null);
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'dispersion', 'dispersion', 0, 10, null);*/
+
+            const plantGenerateBtn = this.pane.addButton({ title: 'generate' });
+            plantGenerateBtn.on('click', () => this.plant.generate());
         }
     }
 

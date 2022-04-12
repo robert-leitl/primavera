@@ -87,6 +87,10 @@ export class Primavera {
         gl.uniformMatrix4fv(this.colorLocations.u_worldInverseTransposeMatrix, false, worldInverseTransposeMatrix);
         gl.bindVertexArray(this.capsuleVAO);
         gl.drawElements(gl.TRIANGLES, this.capsuleBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+        /*gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_COLOR, gl.ZERO);
+        gl.drawElements(gl.LINES, this.capsuleBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+        gl.disable(gl.BLEND);*/
     }
 
     destroy() {

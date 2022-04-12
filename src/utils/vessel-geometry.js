@@ -4,14 +4,16 @@ export class VesselGeometry {
 
     height = 50;
     radius = 20
-    bevelRadius = 15;
-    radiusSegments = 6;
-    bevelSegments = 1;
+    bevelRadius = 13;
+    radiusSegments = 32;
+    bevelSegments = 8;
 
     #halfHeight;
     #innerRadius;
     #radiusStepAngle;
     #bevelStepAngle;
+    #bevelNormalAngleOffset;
+    #bevelNormalStepAngle;
     #vertices = [];
     #indices = [];
     #normals = [];
@@ -23,9 +25,13 @@ export class VesselGeometry {
         this.#innerRadius = this.radius - this.bevelRadius;
         this.#radiusStepAngle = (2 * Math.PI) / this.radiusSegments;
         this.#bevelStepAngle = (Math.PI * .5) / (this.bevelSegments + 1);
+        this.#bevelNormalAngleOffset = this.#bevelStepAngle * 1.5;
+        this.#bevelNormalStepAngle = (Math.PI * .5 - 2 * this.#bevelNormalAngleOffset) / (this.bevelSegments + 1);
 
         this.#generateCap(true);
+        this.#generateBevel(true);
         this.#generateCap(false);
+        this.#generateBevel(false);
         this.#generateTorso();
 
 
@@ -45,15 +51,20 @@ export class VesselGeometry {
             const x = this.#innerRadius * Math.cos(a);
             const z = this.#innerRadius * Math.sin(a);
             this.#vertices.push(...vec3.fromValues(x, centerVertex[1], z));
-            this.#normals.push(...capNorm);
+
+            const bna = Math.PI * 0.5 - this.#bevelNormalAngleOffset;
+            const bny = Math.sin(bna);
+            const bnx = Math.cos(bna) * Math.cos(a);
+            const bnz = Math.cos(bna) * Math.sin(a);
+            const bnv = vec3.fromValues(bnx, isTop ? bny : -bny, bnz);
+            const n = vec3.normalize(vec3.create(), bnv);
+            this.#normals.push(...n);
 
             if (!isTop)
                 this.#indices.push(centerIndex, centerIndex + i + 1, centerIndex + (i + 1) % this.radiusSegments + 1);
             else
                 this.#indices.push(centerIndex, centerIndex + (i + 1) % this.radiusSegments + 1, centerIndex + i + 1);
         }
-
-        this.#generateBevel(isTop);
     }
 
     #generateBevel(isTop = true) {
@@ -76,7 +87,13 @@ export class VesselGeometry {
 
                 const v = vec3.add(vec3.create(), o, bv);
                 this.#vertices.push(...v);
-                const n = vec3.normalize(vec3.create(), bv);
+
+                const bna = (Math.PI * 0.5 - this.#bevelNormalAngleOffset) - (j * this.#bevelNormalStepAngle);
+                const bny = this.bevelRadius * Math.sin(bna);
+                const bnx = (this.bevelRadius * Math.cos(bna)) * Math.cos(a);
+                const bnz = (this.bevelRadius * Math.cos(bna)) * Math.sin(a);
+                const bnv = vec3.fromValues(bnx, isTop ? bny : -bny, bnz);
+                const n = vec3.normalize(vec3.create(), bnv);
                 this.#normals.push(...n);
 
                 if (j <= this.bevelSegments) {
@@ -121,12 +138,22 @@ export class VesselGeometry {
 
             const v1 = vec3.fromValues(x, this.#halfHeight - this.bevelRadius, z);
             const v2 = vec3.fromValues(x, this.bevelRadius - this.#halfHeight, z);
+
+            const bna = this.#bevelNormalAngleOffset;
+            const bny = Math.sin(bna);
+            const bnx = Math.cos(bna) * Math.cos(a);
+            const bnz = Math.cos(bna) * Math.sin(a);
+            const bnv1 = vec3.fromValues(bnx, bny, bnz);
+            const bnv2 = vec3.fromValues(bnx, -bny, bnz);
+            const n1 = vec3.normalize(vec3.create(), bnv1);
+            const n2 = vec3.normalize(vec3.create(), bnv2);
+
             const n = vec3.normalize(vec3.create(), vec3.fromValues(x, 0, z));
 
             this.#vertices.push(...v1);
             this.#vertices.push(...v2);
-            this.#normals.push(...n);
-            this.#normals.push(...n);
+            this.#normals.push(...n1);
+            this.#normals.push(...n2);
 
             const nextSegNdx = (ndx + 2) % (this.radiusSegments * 2);
             this.#indices.push(

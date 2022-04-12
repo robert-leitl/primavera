@@ -5,7 +5,7 @@ precision highp float;
 uniform float u_frames;
 
 in vec3 v_position;
-flat in vec3 v_normal;
+in vec3 v_normal;
 in vec3 v_viewNormal;
 in vec2 v_uv;
 in vec3 v_surfaceToView;
@@ -24,5 +24,5 @@ void main() {
     float NdL = max(0., dot(N, L));
 
     outColor = vec4(vec3(NdL * .2 + .8), 1.);
-    outColor = vec4(N, 1.);
+    //outColor = vec4(N, 1.);
 }

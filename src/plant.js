@@ -5,13 +5,12 @@ import { makeBuffer, makeVertexArray } from "./utils/webgl-utils";
 export class Plant {
 
     constructor(
-        parent,
+        context,
         vesselHeight,
         vesselRadius,
         vesselBevelRadius
     ) {
-        this.parent = parent;
-        this.gl = parent.gl;
+        this.context = context;
         this.vesselHeight = vesselHeight;
         this.vesselRadius = vesselRadius;
         this.vesselBevelRadius = vesselBevelRadius;
@@ -37,6 +36,9 @@ export class Plant {
         const r3 = Math.random() * this.vesselRadius;
         const c2 = vec3.fromValues(r3 * Math.cos(randAngle), randHeight, r3 * Math.sin(randAngle));
 
+        /** @type {WebGLRenderingContext} */
+        const gl = this.context;
+
         const stemVertices = [];
         for(let t=0; t<=1; t+=0.05) {
             stemVertices.push(...this.#cubicBezier(a1, c1, a2, c2, t));
@@ -45,17 +47,17 @@ export class Plant {
 
         if (!this.stemVAO) {
             this.stemBuffers = { 
-                position: makeBuffer(this.gl, this.stemVerticesData, this.gl.DYNAMIC_DRAW),
+                position: makeBuffer(gl, this.stemVerticesData, gl.DYNAMIC_DRAW),
                 numElem: stemVertices.length / 3
             };
-            this.geometryHelper = new GeometryHelper(this.gl);
-            this.stemVAO = makeVertexArray(this.gl, [
+            this.geometryHelper = new GeometryHelper(gl);
+            this.stemVAO = makeVertexArray(gl, [
                 [this.stemBuffers.position, this.geometryHelper.locations.a_position, 3]
             ]);
         } else {
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.stemBuffers.position);
-            this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, this.stemVerticesData);
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.stemBuffers.position);
+            gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.stemVerticesData);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
         }
     }
 
@@ -63,11 +65,14 @@ export class Plant {
 
     }
 
-    render() {
+    render(uniforms) {
+        // center the plant vertically around the origin
+        const modelMatrix = mat4.translate(mat4.create(), uniforms.worldMatrix, vec3.fromValues(0, -this.vesselHeight / 2, 0));
+
         this.geometryHelper.render(
-            mat4.translate(mat4.create(), this.parent.drawUniforms.u_worldMatrix, vec3.fromValues(0, -this.vesselHeight / 2, 0)),
-            this.parent.drawUniforms.u_viewMatrix,
-            this.parent.drawUniforms.u_projectionMatrix,
+            modelMatrix,
+            uniforms.viewMatrix,
+            uniforms.projectionMatrix,
             this.stemVAO,
             this.stemBuffers.numElem
         );

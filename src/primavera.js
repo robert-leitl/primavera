@@ -19,7 +19,7 @@ export class Primavera {
     camera = {
         matrix: mat4.create(),
         near: 90,
-        far: 140,
+        far: 150,
         distance: 120,
         orbit: quat.create(),
         position: vec3.create(),
@@ -58,7 +58,11 @@ export class Primavera {
         if (this.#isDestroyed) return;
 
         this.control.update(this.#deltaTime);
-        mat4.fromQuat(this.drawUniforms.u_worldMatrix, this.control.rotationQuat);
+        mat4.fromQuat(this.drawUniforms.worldMatrix, this.control.rotationQuat);
+
+        // update the world inverse transpose
+        mat4.invert(this.drawUniforms.worldInverseTransposeMatrix, this.drawUniforms.worldMatrix);
+        mat4.transpose(this.drawUniforms.worldInverseTransposeMatrix, this.drawUniforms.worldInverseTransposeMatrix);
 
         this.plant.update(this.#deltaTime);
 
@@ -73,28 +77,54 @@ export class Primavera {
         /** @type {WebGLRenderingContext} */
         const gl = this.gl;
 
-        // draw capsule
-        gl.useProgram(this.colorProgram);
-        gl.enable(gl.CULL_FACE);
-        gl.enable(gl.DEPTH_TEST);
         gl.clearColor(1, 1, 1, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        gl.uniformMatrix4fv(this.colorLocations.u_viewMatrix, false, this.drawUniforms.u_viewMatrix);
-        gl.uniformMatrix4fv(this.colorLocations.u_projectionMatrix, false, this.drawUniforms.u_projectionMatrix);
-        gl.uniform3f(this.colorLocations.u_cameraPosition, this.camera.position[0], this.camera.position[1], this.camera.position[2]);
-        const worldInverseTransposeMatrix = mat4.create();
-        mat4.invert(worldInverseTransposeMatrix, this.drawUniforms.u_worldMatrix);
-        mat4.transpose(worldInverseTransposeMatrix, worldInverseTransposeMatrix);
-        gl.uniformMatrix4fv(this.colorLocations.u_worldMatrix, false, this.drawUniforms.u_worldMatrix);
-        gl.uniformMatrix4fv(this.colorLocations.u_worldInverseTransposeMatrix, false, worldInverseTransposeMatrix);
-        gl.bindVertexArray(this.capsuleVAO);
-        gl.drawElements(gl.TRIANGLES, this.capsuleBuffers.numElem, gl.UNSIGNED_SHORT, 0);
 
-        this.plant.render();
+        //this.#drawVessel(true);
+
+        this.plant.render(this.drawUniforms);
+
+        this.#drawVessel(false);
     }
 
     destroy() {
         this.#isDestroyed = true;
+    }
+
+    #drawVessel(backSide) {
+        /** @type {WebGLRenderingContext} */
+        const gl = this.gl;
+
+        gl.useProgram(this.colorProgram);
+
+        gl.enable(gl.CULL_FACE);
+        gl.enable(gl.DEPTH_TEST);
+
+        let worldInverseTransposeMatrix = this.drawUniforms.worldInverseTransposeMatrix;
+
+        if (backSide) {
+            gl.cullFace(gl.FRONT);
+
+            // flip the normals to draw the inside of the vessel
+            worldInverseTransposeMatrix = mat4.scale(
+                mat4.create(),
+                this.drawUniforms.worldInverseTransposeMatrix,
+                vec3.fromValues(-1, -1, -1));
+        }
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        gl.uniformMatrix4fv(this.colorLocations.u_viewMatrix, false, this.drawUniforms.viewMatrix);
+        gl.uniformMatrix4fv(this.colorLocations.u_projectionMatrix, false, this.drawUniforms.projectionMatrix);
+        gl.uniform3f(this.colorLocations.u_cameraPosition, this.camera.position[0], this.camera.position[1], this.camera.position[2]);
+        gl.uniformMatrix4fv(this.colorLocations.u_worldMatrix, false, this.drawUniforms.worldMatrix);
+        gl.uniformMatrix4fv(this.colorLocations.u_worldInverseTransposeMatrix, false, worldInverseTransposeMatrix);
+        gl.bindVertexArray(this.capsuleVAO);
+        gl.drawElements(gl.TRIANGLES, this.capsuleBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+
+        gl.disable(gl.BLEND);
+        gl.cullFace(gl.BACK);
     }
 
     #init() {
@@ -126,10 +156,10 @@ export class Primavera {
         
         // setup uniforms
         this.drawUniforms = {
-            u_worldMatrix: mat4.create(),
-            u_viewMatrix: mat4.create(),
-            u_projectionMatrix: mat4.create(),
-            u_worldInverseTransposeMatrix: mat4.create()
+            worldMatrix: mat4.create(),
+            viewMatrix: mat4.create(),
+            projectionMatrix: mat4.create(),
+            worldInverseTransposeMatrix: mat4.create()
         };
 
         /////////////////////////////////// GEOMETRY / MESH SETUP
@@ -152,7 +182,7 @@ export class Primavera {
 
         // create the plant
         this.plant = new Plant(
-            this,
+            gl,
             this.VESSEL_HEIGHT, 
             this.VESSEL_RADIUS, 
             this.VESSEL_BEVEL_RADIUS
@@ -221,12 +251,12 @@ export class Primavera {
 
     #updateCameraMatrix() {
         mat4.targetTo(this.camera.matrix, this.camera.position, [0, 0, 0], this.camera.up);
-        mat4.invert(this.drawUniforms.u_viewMatrix, this.camera.matrix);
+        mat4.invert(this.drawUniforms.viewMatrix, this.camera.matrix);
     }
 
     #updateProjectionMatrix(gl) {
         const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-        mat4.perspective(this.drawUniforms.u_projectionMatrix, Math.PI / 4, aspect, this.camera.near, this.camera.far);
+        mat4.perspective(this.drawUniforms.projectionMatrix, Math.PI / 4, aspect, this.camera.near, this.camera.far);
     }
 
     #initTweakpane() {

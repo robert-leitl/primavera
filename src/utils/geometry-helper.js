@@ -32,15 +32,12 @@ export class GeometryHelper {
 
         // draw capsule
         gl.useProgram(this.program);
-        gl.disable(gl.CULL_FACE);
-        gl.disable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
+        gl.enable(gl.DEPTH_TEST);
         gl.uniformMatrix4fv(this.locations.u_worldMatrix, false, worldMatrix);
         gl.uniformMatrix4fv(this.locations.u_viewMatrix, false, viewMatrix);
         gl.uniformMatrix4fv(this.locations.u_projectionMatrix, false, projectionMatrix);
         gl.bindVertexArray(vao);
         gl.drawArrays(gl.LINE_STRIP, 0, numElem);
-
-        gl.enable(gl.CULL_FACE);
-        gl.enable(gl.DEPTH_TEST);
     }
 }

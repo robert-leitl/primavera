@@ -134,7 +134,7 @@ export class Plant {
          gl.uniformMatrix4fv(this.leafLocations.u_worldMatrix, false, uniforms.worldMatrix);
          gl.uniformMatrix4fv(this.leafLocations.u_worldInverseTransposeMatrix, false, uniforms.worldInverseTransposeMatrix);
          gl.bindVertexArray(this.leafVAO);
-         gl.drawElements(gl.TRIANGLES, this.leafBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+         gl.drawElements(gl.POINTS, this.leafBuffers.numElem, gl.UNSIGNED_SHORT, 0);
     }
 
     #getVesselRadiusAtHeight(h) {

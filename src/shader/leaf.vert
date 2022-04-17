@@ -27,4 +27,6 @@ void main() {
     v_position = a_position.xyz;
     v_viewPosition = viewPosition.xyz;
     v_viewNormal = (u_viewMatrix * vec4(v_normal, 0.)).xyz;
+
+    gl_PointSize = 2.;
 }

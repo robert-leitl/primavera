@@ -1,6 +1,11 @@
 import { mat4, vec3 } from "gl-matrix";
+import { LeafGeometry } from "./leaf-geometry";
+import { cubicBezier } from "./utils/bezier";
 import { GeometryHelper } from "./utils/geometry-helper";
-import { makeBuffer, makeVertexArray } from "./utils/webgl-utils";
+import { createProgram, makeBuffer, makeVertexArray } from "./utils/webgl-utils";
+
+import leafVertShaderSource from './shader/leaf.vert';
+import leafFragShaderSource from './shader/leaf.frag';
 
 export class Plant {
 
@@ -14,6 +19,40 @@ export class Plant {
         this.vesselHeight = vesselHeight;
         this.vesselRadius = vesselRadius;
         this.vesselBevelRadius = vesselBevelRadius;
+
+        /** @type {WebGLRenderingContext} */
+        const gl = this.context;
+
+        // setup programs
+        this.leafProgram = createProgram(gl, [leafVertShaderSource, leafFragShaderSource], null, { a_position: 0, a_normal: 1, a_uv: 2 });
+
+        // find the locations
+        this.leafLocations = {
+            a_position: gl.getAttribLocation(this.leafProgram, 'a_position'),
+            a_normal: gl.getAttribLocation(this.leafProgram, 'a_normal'),
+            a_uv: gl.getAttribLocation(this.leafProgram, 'a_uv'),
+            u_worldMatrix: gl.getUniformLocation(this.leafProgram, 'u_worldMatrix'),
+            u_viewMatrix: gl.getUniformLocation(this.leafProgram, 'u_viewMatrix'),
+            u_projectionMatrix: gl.getUniformLocation(this.leafProgram, 'u_projectionMatrix'),
+            u_worldInverseTransposeMatrix: gl.getUniformLocation(this.leafProgram, 'u_worldInverseTransposeMatrix'),
+            u_cameraPosition: gl.getUniformLocation(this.leafProgram, 'u_cameraPosition')
+        };
+
+        // create leaf VAO
+        this.leafGeometry = new LeafGeometry();
+        console.log(this.leafGeometry);
+
+        this.leafBuffers = {
+            position: makeBuffer(gl, this.leafGeometry.vertices, gl.STATIC_DRAW),
+            normal: makeBuffer(gl, this.leafGeometry.normals, gl.STATIC_DRAW),
+            uv: makeBuffer(gl, this.leafGeometry.uvs, gl.STATIC_DRAW),
+            numElem: this.leafGeometry.indices.length
+        };
+        this.leafVAO = makeVertexArray(gl, [
+            [this.leafBuffers.position, this.leafLocations.a_position, 3],
+            [this.leafBuffers.normal, this.leafLocations.a_normal, 3],
+            [this.leafBuffers.uv, this.leafLocations.a_uv, 2]
+        ], this.leafGeometry.indices);
     }
 
     generate() {
@@ -26,7 +65,7 @@ export class Plant {
         const a2 = vec3.fromValues(r1 * Math.cos(randAngle), this.vesselHeight, r1 * Math.sin(randAngle));
 
         // create the control points
-        const capOffset = this.vesselBevelRadius * 0.1;
+        const capOffset = this.vesselBevelRadius * 0.2;
         randAngle = Math.random() * 2 * Math.PI;
         let randHeight = Math.random() * (h2 - capOffset) + capOffset;
         const r2 = Math.random() * this.vesselRadius;
@@ -41,7 +80,7 @@ export class Plant {
 
         const stemVertices = [];
         for(let t=0; t<=1; t+=0.05) {
-            stemVertices.push(...this.#cubicBezier(a1, c1, a2, c2, t));
+            stemVertices.push(...cubicBezier(a1, c1, a2, c2, t));
         }
         this.stemVerticesData = new Float32Array(stemVertices);
 
@@ -76,6 +115,26 @@ export class Plant {
             this.stemVAO,
             this.stemBuffers.numElem
         );
+
+        this.#renderLeafs(uniforms);
+    }
+
+    #renderLeafs(uniforms) {
+         /** @type {WebGLRenderingContext} */
+         const gl = this.context;
+
+         gl.useProgram(this.leafProgram);
+ 
+         gl.enable(gl.CULL_FACE);
+         gl.enable(gl.DEPTH_TEST);
+ 
+         gl.uniformMatrix4fv(this.leafLocations.u_viewMatrix, false, uniforms.viewMatrix);
+         gl.uniformMatrix4fv(this.leafLocations.u_projectionMatrix, false, uniforms.projectionMatrix);
+         gl.uniform3f(this.leafLocations.u_cameraPosition, uniforms.cameraMatrix[12], uniforms.cameraMatrix[14], uniforms.cameraMatrix[14]);
+         gl.uniformMatrix4fv(this.leafLocations.u_worldMatrix, false, uniforms.worldMatrix);
+         gl.uniformMatrix4fv(this.leafLocations.u_worldInverseTransposeMatrix, false, uniforms.worldInverseTransposeMatrix);
+         gl.bindVertexArray(this.leafVAO);
+         gl.drawElements(gl.TRIANGLES, this.leafBuffers.numElem, gl.UNSIGNED_SHORT, 0);
     }
 
     #getVesselRadiusAtHeight(h) {
@@ -90,25 +149,5 @@ export class Plant {
         }
 
         return this.vesselRadius;
-    }
-
-    #cubicBezier(a1, c1, a2, c2, t) {
-        const t2 = t * t;
-        const t3 = t2 * t;
-
-        const p0 = -t3 + 3 * t2 - 3 * t + 1;
-        const p1 = 3 * t3 - 6 * t2 + 3 * t;
-        const p2 = -3 * t3 + 3 * t2;
-        const p3 = t3;
-
-        const v0 = vec3.scale(vec3.create(), a1, p0);
-        const v1 = vec3.scale(vec3.create(), c1, p1);
-        const v2 = vec3.scale(vec3.create(), c2, p2);
-        const v3 = vec3.scale(vec3.create(), a2, p3);
-
-        const v01 = vec3.add(vec3.create(), v0, v1);
-        const v23 = vec3.add(vec3.create(), v2, v3);
-
-        return vec3.add(vec3.create(), v01, v23);
     }
 }

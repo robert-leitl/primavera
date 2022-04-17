@@ -5,7 +5,7 @@ import { createAndSetupTexture, createFramebuffer, createProgram, makeBuffer, ma
 import colorVertShaderSource from './shader/color.vert';
 import colorFragShaderSource from './shader/color.frag';
 import { ArcballControl } from './utils/arcball-control';
-import { VesselGeometry } from './utils/vessel-geometry';
+import { VesselGeometry } from './vessel-geometry';
 import { Plant } from './plant';
 
 export class Primavera {
@@ -84,7 +84,7 @@ export class Primavera {
 
         this.plant.render(this.drawUniforms);
 
-        this.#drawVessel(false);
+        //this.#drawVessel(false);
     }
 
     destroy() {
@@ -120,8 +120,8 @@ export class Primavera {
         gl.uniform3f(this.colorLocations.u_cameraPosition, this.camera.position[0], this.camera.position[1], this.camera.position[2]);
         gl.uniformMatrix4fv(this.colorLocations.u_worldMatrix, false, this.drawUniforms.worldMatrix);
         gl.uniformMatrix4fv(this.colorLocations.u_worldInverseTransposeMatrix, false, worldInverseTransposeMatrix);
-        gl.bindVertexArray(this.capsuleVAO);
-        gl.drawElements(gl.TRIANGLES, this.capsuleBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+        gl.bindVertexArray(this.vesselVAO);
+        gl.drawElements(gl.TRIANGLES, this.vesselBuffers.numElem, gl.UNSIGNED_SHORT, 0);
 
         gl.disable(gl.BLEND);
         gl.cullFace(gl.BACK);
@@ -158,6 +158,7 @@ export class Primavera {
         this.drawUniforms = {
             worldMatrix: mat4.create(),
             viewMatrix: mat4.create(),
+            cameraMatrix: mat4.create(),
             projectionMatrix: mat4.create(),
             worldInverseTransposeMatrix: mat4.create()
         };
@@ -170,14 +171,14 @@ export class Primavera {
         this.VESSEL_BEVEL_RADIUS = 13;
         this.vesselGeometry = new VesselGeometry(this.VESSEL_HEIGHT, this.VESSEL_RADIUS, this.VESSEL_BEVEL_RADIUS);
 
-        this.capsuleBuffers = { 
+        this.vesselBuffers = { 
             position: makeBuffer(gl, this.vesselGeometry.vertices, gl.STATIC_DRAW),
             normal: makeBuffer(gl, this.vesselGeometry.normals, gl.STATIC_DRAW),
             numElem: this.vesselGeometry.indices.length
         };
-        this.capsuleVAO = makeVertexArray(gl, [
-            [this.capsuleBuffers.position, this.colorLocations.a_position, 3],
-            [this.capsuleBuffers.normal, this.colorLocations.a_normal, 3]
+        this.vesselVAO = makeVertexArray(gl, [
+            [this.vesselBuffers.position, this.colorLocations.a_position, 3],
+            [this.vesselBuffers.normal, this.colorLocations.a_normal, 3]
         ], this.vesselGeometry.indices);
 
         // create the plant
@@ -252,6 +253,7 @@ export class Primavera {
     #updateCameraMatrix() {
         mat4.targetTo(this.camera.matrix, this.camera.position, [0, 0, 0], this.camera.up);
         mat4.invert(this.drawUniforms.viewMatrix, this.camera.matrix);
+        mat4.copy(this.drawUniforms.cameraMatrix, this.camera.matrix);
     }
 
     #updateProjectionMatrix(gl) {

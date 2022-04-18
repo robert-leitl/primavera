@@ -1,4 +1,5 @@
-import { vec3 } from "gl-matrix";
+import { vec2, vec3 } from "gl-matrix";
+import { CubicBezier } from "./utils/cubic-bezier";
 
 export class LeafGeometry {
 
@@ -7,15 +8,23 @@ export class LeafGeometry {
     #normals = [];
     #uvs = [];
 
-    constructor() {
+    #LEAF_LENGTH = 1 * 20;
+    #LEAF_WIDTH = .3 * 20;
+    #LEAF_BEND = 1 * 20;
 
-        const LEAF_LENGTH = 1 * 20;
-        const LEAF_WIDTH = 0.4 * 20;
-        const LON_SEGMENTS = 4;
-        const LAT_SEGMENTS = 8;
-        const latSegmentWidth = LEAF_LENGTH / LAT_SEGMENTS;
-        const lonSegmentWidth = LEAF_WIDTH / LON_SEGMENTS;
-        const lonOffset = LEAF_WIDTH / 2;
+    contourBezierPoints = {
+        a1: [0, 0, 0],
+        c1: [0, 0.4, 0],
+        a2: [0, 1, -1],
+        c2: [0, 0.4, .1]
+    };
+
+    constructor() {
+        const LON_SEGMENTS = 8;
+        const LAT_SEGMENTS = 12;
+        const latSegmentWidth = this.#LEAF_LENGTH / LAT_SEGMENTS;
+        const lonSegmentWidth = this.#LEAF_WIDTH / LON_SEGMENTS;
+        const lonOffset = this.#LEAF_WIDTH / 2;
 
         for(let i = 0; i <= LAT_SEGMENTS; ++i) {
             const lat = latSegmentWidth * i;
@@ -29,13 +38,18 @@ export class LeafGeometry {
                 // find the point on the leaf contour for the current lat and long position
                 const contourPoint = this.#getContourPoint(latParam, lonParam);
 
-                const v = vec3.fromValues(lon - lonOffset, lat, 0);
+                const curlFactor = Math.sqrt(2 - lonParam * lonParam);
+                const x = -contourPoint[0];
+                const y = contourPoint[1];
+                const z = contourPoint[2] + (1 - curlFactor) * (1.5 * (1 - latParam * latParam * latParam));
+                const v = vec3.fromValues(x, y, z);
                 this.#vertices.push(...v);
 
-                const n = vec3.fromValues(0, 0, 1);
+                const curlNormal = vec3.normalize(vec3.create(), vec3.fromValues(-x, 0, -z));
+                const n = vec3.rotateX(vec3.create(), curlNormal, vec3.fromValues(0, 0, 0), -Math.atan(3 * (latParam * latParam)));
                 this.#normals.push(...n);
 
-                this.#uvs.push(lon / LON_SEGMENTS, lat / LAT_SEGMENTS);
+                this.#uvs.push(lonParam, latParam);
             }
         }
 
@@ -62,6 +76,24 @@ export class LeafGeometry {
     }
 
     #getContourPoint(t, s) {
+        const startWidth = 0.1 * this.#LEAF_WIDTH;
+        const a1 = [...this.contourBezierPoints.a1];
+        const c1 = [...this.contourBezierPoints.c1];
+        const a2 = [...this.contourBezierPoints.a2];
+        const c2 = [...this.contourBezierPoints.c2];
 
+        a1[0] = startWidth * s;
+        c1[0] = a1[0];
+        c2[0] = this.#LEAF_WIDTH * s;
+
+        c1[1] = c1[1] * this.#LEAF_LENGTH;
+        c2[1] = c2[1] * this.#LEAF_LENGTH;
+        a2[1] = a2[1] * this.#LEAF_LENGTH;
+        a2[2] *= this.#LEAF_BEND;
+        c2[2] *= this.#LEAF_BEND;
+
+        const curve = new CubicBezier(a1, c1, c2, a2);
+
+        return curve.pointAt(curve.map(t));
     }
 }

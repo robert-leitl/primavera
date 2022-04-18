@@ -23,5 +23,5 @@ void main() {
     vec3 L = normalize(vec3(0., 1., 0.));
     float NdL = max(0., dot(N, L));
 
-    outColor = vec4(0., 0., 1., 1.);
+    outColor = vec4(N, 1.);
 }

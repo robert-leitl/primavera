@@ -1,11 +1,11 @@
 import { mat4, vec3 } from "gl-matrix";
 import { LeafGeometry } from "./leaf-geometry";
-import { cubicBezier } from "./utils/bezier";
 import { GeometryHelper } from "./utils/geometry-helper";
 import { createProgram, makeBuffer, makeVertexArray } from "./utils/webgl-utils";
 
 import leafVertShaderSource from './shader/leaf.vert';
 import leafFragShaderSource from './shader/leaf.frag';
+import { CubicBezier } from "./utils/cubic-bezier";
 
 export class Plant {
 
@@ -79,8 +79,9 @@ export class Plant {
         const gl = this.context;
 
         const stemVertices = [];
+        const curve = new CubicBezier(a1, c1, c2, a2);
         for(let t=0; t<=1; t+=0.05) {
-            stemVertices.push(...cubicBezier(a1, c1, a2, c2, t));
+            stemVertices.push(...curve.pointAt(curve.map(t)));
         }
         this.stemVerticesData = new Float32Array(stemVertices);
 
@@ -125,7 +126,7 @@ export class Plant {
 
          gl.useProgram(this.leafProgram);
  
-         gl.enable(gl.CULL_FACE);
+         gl.disable(gl.CULL_FACE);
          gl.enable(gl.DEPTH_TEST);
  
          gl.uniformMatrix4fv(this.leafLocations.u_viewMatrix, false, uniforms.viewMatrix);
@@ -134,7 +135,9 @@ export class Plant {
          gl.uniformMatrix4fv(this.leafLocations.u_worldMatrix, false, uniforms.worldMatrix);
          gl.uniformMatrix4fv(this.leafLocations.u_worldInverseTransposeMatrix, false, uniforms.worldInverseTransposeMatrix);
          gl.bindVertexArray(this.leafVAO);
-         gl.drawElements(gl.POINTS, this.leafBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+         gl.drawElements(gl.TRIANGLES, this.leafBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+
+         gl.enable(gl.CULL_FACE);
     }
 
     #getVesselRadiusAtHeight(h) {

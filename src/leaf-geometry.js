@@ -22,34 +22,34 @@ export class LeafGeometry {
     constructor() {
         const LON_SEGMENTS = 8;
         const LAT_SEGMENTS = 12;
-        const latSegmentWidth = this.#LEAF_LENGTH / LAT_SEGMENTS;
-        const lonSegmentWidth = this.#LEAF_WIDTH / LON_SEGMENTS;
-        const lonOffset = this.#LEAF_WIDTH / 2;
 
         for(let i = 0; i <= LAT_SEGMENTS; ++i) {
-            const lat = latSegmentWidth * i;
-            const latParam = i / LAT_SEGMENTS;
+            const v = i / LAT_SEGMENTS;
 
             for(let j = 0; j <= LON_SEGMENTS; ++j) {
-                const lon = lonSegmentWidth * j;
                 const lonSegmentHalf = LON_SEGMENTS / 2;
-                const lonParam = (lonSegmentHalf - j) / lonSegmentHalf;
+                const u = (lonSegmentHalf - j) / lonSegmentHalf;
 
                 // find the point on the leaf contour for the current lat and long position
-                const contourPoint = this.#getContourPoint(latParam, lonParam);
+                const curve = this.#getContourCurve(u);
+                const t = curve.map(v);
+                const contourPoint = curve.pointAt(t);
+                const contourVelocity = vec3.normalize(vec3.create(), curve.velocityAt(t));
 
-                const curlFactor = Math.sqrt(2 - lonParam * lonParam);
+                // apply a slight curling on the y-axis to the leaf
+                const curlFactor = Math.sqrt(2 - u * u);
                 const x = -contourPoint[0];
                 const y = contourPoint[1];
-                const z = contourPoint[2] + (1 - curlFactor) * (1.5 * (1 - latParam * latParam * latParam));
-                const v = vec3.fromValues(x, y, z);
-                this.#vertices.push(...v);
+                const z = contourPoint[2] + (1 - curlFactor) * (1.5 * (1 - v * v * v));
+                this.#vertices.push(...vec3.fromValues(x, y, z));
 
+                // combine the curl and the z-bend of the curve to calculate the normals
                 const curlNormal = vec3.normalize(vec3.create(), vec3.fromValues(-x, 0, -z));
-                const n = vec3.rotateX(vec3.create(), curlNormal, vec3.fromValues(0, 0, 0), -Math.atan(3 * (latParam * latParam)));
+                const zBendDelta = contourVelocity[2] / contourVelocity[1];
+                const n = vec3.rotateX(vec3.create(), curlNormal, vec3.fromValues(0, 0, 0), Math.atan(zBendDelta));
                 this.#normals.push(...n);
 
-                this.#uvs.push(lonParam, latParam);
+                this.#uvs.push(u, v);
             }
         }
 
@@ -75,7 +75,7 @@ export class LeafGeometry {
         this.indices = new Uint16Array(this.#indices);
     }
 
-    #getContourPoint(t, s) {
+    #getContourCurve(s) {
         const startWidth = 0.1 * this.#LEAF_WIDTH;
         const a1 = [...this.contourBezierPoints.a1];
         const c1 = [...this.contourBezierPoints.c1];
@@ -94,6 +94,6 @@ export class LeafGeometry {
 
         const curve = new CubicBezier(a1, c1, c2, a2);
 
-        return curve.pointAt(curve.map(t));
+        return curve;
     }
 }

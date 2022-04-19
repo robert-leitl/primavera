@@ -27,6 +27,10 @@ export class Primavera {
         up: vec3.fromValues(0, 1, 0)
     };
 
+    plantSettings = {
+        showGuides: true
+    }
+
     constructor(canvas, pane, oninit = null) {
         this.canvas = canvas;
         this.pane = pane;
@@ -82,7 +86,7 @@ export class Primavera {
 
         //this.#drawVessel(true);
 
-        this.plant.render(this.drawUniforms);
+        this.plant.render(this.drawUniforms, this.plantSettings.showGuides);
 
         //this.#drawVessel(false);
     }
@@ -286,7 +290,9 @@ export class Primavera {
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'strength', 'strength', 0, 1, null);
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'dispersion', 'dispersion', 0, 10, null);*/
 
-            const plantGenerateBtn = this.pane.addButton({ title: 'generate' });
+            const plantFolder = this.pane.addFolder({ title: 'Plant' });
+            plantFolder.addInput(this.plantSettings, 'showGuides', { label: 'guides' });
+            const plantGenerateBtn = plantFolder.addButton({ title: 'generate' });
             plantGenerateBtn.on('click', () => this.plant.generate());
         }
     }

@@ -9,6 +9,8 @@ import { CubicBezier } from "./utils/cubic-bezier";
 
 export class Plant {
 
+    #STEM_SEGMENTS = 10;
+
     constructor(
         context,
         vesselHeight,
@@ -40,7 +42,6 @@ export class Plant {
 
         // create leaf VAO
         this.leafGeometry = new LeafGeometry();
-        console.log(this.leafGeometry);
 
         this.leafBuffers = {
             position: makeBuffer(gl, this.leafGeometry.vertices, gl.STATIC_DRAW),
@@ -56,6 +57,31 @@ export class Plant {
     }
 
     generate() {
+        this.#generateStem();
+    }
+
+    update() {
+
+    }
+
+    render(uniforms, drawGuides = false) {
+        // center the plant vertically around the origin
+        const modelMatrix = mat4.translate(mat4.create(), uniforms.worldMatrix, vec3.fromValues(0, -this.vesselHeight / 2, 0));
+
+        if (drawGuides) {
+            this.geometryHelper.render(
+                modelMatrix,
+                uniforms.viewMatrix,
+                uniforms.projectionMatrix,
+                this.stemVAO,
+                this.stemBuffers.numElem
+            );
+        }
+
+        this.#renderLeafs(uniforms);
+    }
+
+    #generateStem() {
         const h2 = this.vesselHeight / 2;
         let randAngle = Math.random() * 2 * Math.PI;
         // create the two anchor points at the bottom and top of the vessel
@@ -75,20 +101,21 @@ export class Plant {
         const r3 = Math.random() * this.vesselRadius;
         const c2 = vec3.fromValues(r3 * Math.cos(randAngle), randHeight, r3 * Math.sin(randAngle));
 
-        /** @type {WebGLRenderingContext} */
-        const gl = this.context;
+         /** @type {WebGLRenderingContext} */
+         const gl = this.context;
 
-        const stemVertices = [];
-        const curve = new CubicBezier(a1, c1, c2, a2);
-        for(let t=0; t<=1; t+=0.05) {
-            stemVertices.push(...curve.pointAt(curve.map(t)));
+        this.stemVertices = [];
+        this.stemCurve = new CubicBezier(a1, c1, c2, a2);
+        for(let i = 0; i <= this.#STEM_SEGMENTS; ++i) {
+            const t = i / this.#STEM_SEGMENTS;
+            this.stemVertices.push(...this.stemCurve.pointAt(this.stemCurve.map(t)));
         }
-        this.stemVerticesData = new Float32Array(stemVertices);
 
+        this.stemVerticesData = new Float32Array(this.stemVertices);
         if (!this.stemVAO) {
             this.stemBuffers = { 
                 position: makeBuffer(gl, this.stemVerticesData, gl.DYNAMIC_DRAW),
-                numElem: stemVertices.length / 3
+                numElem: this.stemVertices.length / 3
             };
             this.geometryHelper = new GeometryHelper(gl);
             this.stemVAO = makeVertexArray(gl, [
@@ -99,25 +126,6 @@ export class Plant {
             gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.stemVerticesData);
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
         }
-    }
-
-    update() {
-
-    }
-
-    render(uniforms) {
-        // center the plant vertically around the origin
-        const modelMatrix = mat4.translate(mat4.create(), uniforms.worldMatrix, vec3.fromValues(0, -this.vesselHeight / 2, 0));
-
-        this.geometryHelper.render(
-            modelMatrix,
-            uniforms.viewMatrix,
-            uniforms.projectionMatrix,
-            this.stemVAO,
-            this.stemBuffers.numElem
-        );
-
-        this.#renderLeafs(uniforms);
     }
 
     #renderLeafs(uniforms) {

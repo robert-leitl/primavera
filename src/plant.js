@@ -10,6 +10,10 @@ import { CubicBezier } from "./utils/cubic-bezier";
 export class Plant {
 
     #STEM_SEGMENTS = 10;
+    #LEAVES_PER_SEGMENT = 2;
+    #LEAF_COUNT = this.#STEM_SEGMENTS * this.#LEAVES_PER_SEGMENT;
+
+    leafInstances;
 
     constructor(
         context,
@@ -33,6 +37,7 @@ export class Plant {
             a_position: gl.getAttribLocation(this.leafProgram, 'a_position'),
             a_normal: gl.getAttribLocation(this.leafProgram, 'a_normal'),
             a_uv: gl.getAttribLocation(this.leafProgram, 'a_uv'),
+            a_instanceMatrix: gl.getAttribLocation(this.leafProgram, 'a_instanceMatrix'),
             u_worldMatrix: gl.getUniformLocation(this.leafProgram, 'u_worldMatrix'),
             u_viewMatrix: gl.getUniformLocation(this.leafProgram, 'u_viewMatrix'),
             u_projectionMatrix: gl.getUniformLocation(this.leafProgram, 'u_projectionMatrix'),
@@ -54,10 +59,13 @@ export class Plant {
             [this.leafBuffers.normal, this.leafLocations.a_normal, 3],
             [this.leafBuffers.uv, this.leafLocations.a_uv, 2]
         ], this.leafGeometry.indices);
+
+        this.#initLeafInstances();
     }
 
     generate() {
         this.#generateStem();
+        this.#generateLeafs();
     }
 
     update() {
@@ -78,7 +86,49 @@ export class Plant {
             );
         }
 
-        this.#renderLeafs(uniforms);
+        this.#renderLeafs(uniforms, modelMatrix);
+    }
+
+    #initLeafInstances() {
+        /** @type {WebGLRenderingContext} */
+        const gl = this.context;
+
+        // init the leaf instances
+        this.leafInstances = {
+            matricesArray: new Float32Array(this.#LEAF_COUNT * 16),
+            matrices: [],
+            bindMatrices: [],
+            buffer: gl.createBuffer()
+        }
+        const numInstances = this.#LEAF_COUNT;
+        for(let i = 0; i < numInstances; ++i) {
+            const instanceMatrixArray = new Float32Array(this.leafInstances.matricesArray.buffer, i * 16 * 4, 16);
+            const bindMatrix = mat4.create();
+            instanceMatrixArray.set(bindMatrix);
+            this.leafInstances.matrices.push(instanceMatrixArray);
+            this.leafInstances.bindMatrices.push(bindMatrix);
+        }
+
+        gl.bindVertexArray(this.leafVAO);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.leafInstances.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.leafInstances.matricesArray.byteLength, gl.DYNAMIC_DRAW);
+        const mat4AttribSlotCount = 4;
+        const bytesPerMatrix = 16 * 4;
+        for(let j = 0; j < mat4AttribSlotCount; ++j) {
+            const loc = this.leafLocations.a_instanceMatrix + j;
+            gl.enableVertexAttribArray(loc);
+            gl.vertexAttribPointer(
+                loc,
+                4,
+                gl.FLOAT,
+                false,
+                bytesPerMatrix, // stride, num bytes to advance to get to next set of values
+                j * 4 * 4 // one row = 4 values each 4 bytes
+            );
+            gl.vertexAttribDivisor(loc, 1); // it sets this attribute to only advance to the next value once per instance
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindVertexArray(null);
     }
 
     #generateStem() {
@@ -128,24 +178,53 @@ export class Plant {
         }
     }
 
-    #renderLeafs(uniforms) {
-         /** @type {WebGLRenderingContext} */
-         const gl = this.context;
+    #generateLeafs() {
+        /** @type {WebGLRenderingContext} */
+        const gl = this.context;
 
-         gl.useProgram(this.leafProgram);
- 
-         gl.disable(gl.CULL_FACE);
-         gl.enable(gl.DEPTH_TEST);
- 
-         gl.uniformMatrix4fv(this.leafLocations.u_viewMatrix, false, uniforms.viewMatrix);
-         gl.uniformMatrix4fv(this.leafLocations.u_projectionMatrix, false, uniforms.projectionMatrix);
-         gl.uniform3f(this.leafLocations.u_cameraPosition, uniforms.cameraMatrix[12], uniforms.cameraMatrix[14], uniforms.cameraMatrix[14]);
-         gl.uniformMatrix4fv(this.leafLocations.u_worldMatrix, false, uniforms.worldMatrix);
-         gl.uniformMatrix4fv(this.leafLocations.u_worldInverseTransposeMatrix, false, uniforms.worldInverseTransposeMatrix);
-         gl.bindVertexArray(this.leafVAO);
-         gl.drawElements(gl.TRIANGLES, this.leafBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+        const numInstances = this.#LEAF_COUNT;
+        for(let i = 0; i < numInstances; ++i) {
+            const stemSegmentNdx = Math.floor(i / this.#LEAVES_PER_SEGMENT);
+            const t = (stemSegmentNdx + 0.2) / (this.#STEM_SEGMENTS + 0.4);
+            const bindMatrix = this.leafInstances.bindMatrices[i];
+            const matrix = this.leafInstances.matrices[i];
+            const tOff = Math.random() * (this.vesselHeight / this.#STEM_SEGMENTS) * 0.02;
 
-         gl.enable(gl.CULL_FACE);
+            const mt = this.stemCurve.map(t + tOff);
+            mat4.translate(matrix, bindMatrix, this.stemCurve.pointAt(mt));
+            const dir = this.stemCurve.velocityAt(mt);
+            mat4.rotateY(matrix, matrix, Math.random() * Math.PI * 2 - Math.PI);
+        }
+
+        // upload the instance matrix buffer
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.leafInstances.buffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.leafInstances.matricesArray);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    }
+
+    #renderLeafs(uniforms, modelMatrix) {
+        /** @type {WebGLRenderingContext} */
+        const gl = this.context;
+
+        gl.useProgram(this.leafProgram);
+
+        gl.disable(gl.CULL_FACE);
+ 
+        gl.bindVertexArray(this.leafVAO);
+        gl.uniformMatrix4fv(this.leafLocations.u_viewMatrix, false, uniforms.viewMatrix);
+        gl.uniformMatrix4fv(this.leafLocations.u_projectionMatrix, false, uniforms.projectionMatrix);
+        gl.uniform3f(this.leafLocations.u_cameraPosition, uniforms.cameraMatrix[12], uniforms.cameraMatrix[14], uniforms.cameraMatrix[14]);
+        gl.uniformMatrix4fv(this.leafLocations.u_worldMatrix, false, modelMatrix);
+        gl.uniformMatrix4fv(this.leafLocations.u_worldInverseTransposeMatrix, false, uniforms.worldInverseTransposeMatrix);
+        gl.drawElementsInstanced(
+            gl.TRIANGLES,
+            this.leafBuffers.numElem,
+            gl.UNSIGNED_SHORT,
+            0,
+            this.#LEAF_COUNT
+        )
+
+        gl.enable(gl.CULL_FACE);
     }
 
     #getVesselRadiusAtHeight(h) {

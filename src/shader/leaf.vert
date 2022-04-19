@@ -9,6 +9,7 @@ uniform vec3 u_cameraPosition;
 in vec3 a_position;
 in vec3 a_normal;
 in vec2 a_uv;
+in mat4 a_instanceMatrix;
 
 out vec3 v_position;
 out vec3 v_viewPosition;
@@ -19,8 +20,8 @@ out vec3 v_surfaceToView;
 
 void main() {
     v_uv = a_uv;
-    v_normal = (u_worldInverseTransposeMatrix * vec4(a_normal, 0.)).xyz;
-    vec4 worldPosition = u_worldMatrix * vec4(a_position, 1.);
+    v_normal = (u_worldInverseTransposeMatrix * a_instanceMatrix * vec4(a_normal, 0.)).xyz;
+    vec4 worldPosition = u_worldMatrix * a_instanceMatrix * vec4(a_position, 1.);
     vec4 viewPosition = u_viewMatrix * worldPosition;
     gl_Position = u_projectionMatrix * viewPosition;
     v_surfaceToView = u_cameraPosition - worldPosition.xyz;

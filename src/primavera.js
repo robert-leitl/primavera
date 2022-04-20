@@ -88,7 +88,7 @@ export class Primavera {
 
         this.plant.render(this.drawUniforms, this.plantSettings.showGuides);
 
-        //this.#drawVessel(false);
+        this.#drawVessel(false);
     }
 
     destroy() {

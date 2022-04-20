@@ -13,10 +13,10 @@ export class LeafGeometry {
     #LEAF_BEND = 1 * 20;
 
     contourBezierPoints = {
-        a1: [0, 0, 0],
-        c1: [0, 0.4, 0],
-        a2: [0, 1, -1],
-        c2: [0, 0.4, .1]
+        a0: [0, 0, 0],
+        c0: [0, 0.4, 0],
+        a1: [0, 1, -1],
+        c1: [0, 0.4, .1]
     };
 
     constructor() {
@@ -75,24 +75,28 @@ export class LeafGeometry {
         this.indices = new Uint16Array(this.#indices);
     }
 
+    get extent() {
+        return vec3.fromValues(...this.contourBezierPoints.a1)
+    }
+
     #getContourCurve(s) {
         const startWidth = 0.1 * this.#LEAF_WIDTH;
+        const a0 = [...this.contourBezierPoints.a0];
+        const c0 = [...this.contourBezierPoints.c0];
         const a1 = [...this.contourBezierPoints.a1];
         const c1 = [...this.contourBezierPoints.c1];
-        const a2 = [...this.contourBezierPoints.a2];
-        const c2 = [...this.contourBezierPoints.c2];
 
-        a1[0] = startWidth * s;
-        c1[0] = a1[0];
-        c2[0] = this.#LEAF_WIDTH * s;
+        a0[0] = startWidth * s;
+        c0[0] = a0[0];
+        c1[0] = this.#LEAF_WIDTH * s;
 
+        c0[1] = c0[1] * this.#LEAF_LENGTH;
         c1[1] = c1[1] * this.#LEAF_LENGTH;
-        c2[1] = c2[1] * this.#LEAF_LENGTH;
-        a2[1] = a2[1] * this.#LEAF_LENGTH;
-        a2[2] *= this.#LEAF_BEND;
-        c2[2] *= this.#LEAF_BEND;
+        a1[1] = a1[1] * this.#LEAF_LENGTH;
+        a1[2] *= this.#LEAF_BEND;
+        c1[2] *= this.#LEAF_BEND;
 
-        const curve = new CubicBezier(a1, c1, c2, a2);
+        const curve = new CubicBezier(a0, c0, c1, a1);
 
         return curve;
     }

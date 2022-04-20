@@ -98,8 +98,7 @@ export class Plant {
             matricesArray: new Float32Array(this.#LEAF_COUNT * 16),
             matrices: [],
             bindMatrices: [],
-            buffer: gl.createBuffer(),
-            scales: []
+            buffer: gl.createBuffer()
         }
         const numInstances = this.#LEAF_COUNT;
         for(let i = 0; i < numInstances; ++i) {
@@ -108,7 +107,6 @@ export class Plant {
             instanceMatrixArray.set(bindMatrix);
             this.leafInstances.matrices.push(instanceMatrixArray);
             this.leafInstances.bindMatrices.push(bindMatrix);
-            this.leafInstances.scales.push(Math.random() * 0.4 + 0.6);
         }
 
         gl.bindVertexArray(this.leafVAO);
@@ -188,23 +186,33 @@ export class Plant {
         const numInstances = this.#LEAF_COUNT;
         const maxOffset = (this.vesselHeight / numInstances) * 0.01;
         const up = vec3.fromValues(0, 0, 1);
+        const leafExtent = this.leafGeometry.extent;
         for(let i = 0; i < numInstances; ++i) {
             const t = i / (numInstances * 1.25) + 0.05;
             const bindMatrix = this.leafInstances.bindMatrices[i];
             const matrix = this.leafInstances.matrices[i];
-            const scale = this.leafInstances.scales[i];
             const tOff = Math.random() * maxOffset - maxOffset / 2;
 
+            // move the leaf to the point on the stem curve
             const mt = this.stemCurve.map(t + tOff);
             const p = this.stemCurve.pointAt(mt);
             mat4.translate(matrix, bindMatrix, p);
 
+            // align the leaf tangentially to the stem curve
             const tangent = vec3.normalize(vec3.create(), this.stemCurve.velocityAt(mt));
             vec3.rotateY(up, up, vec3.create(), Math.random() * Math.PI * 2 - Math.PI);
             const rotation = mat4.targetTo(mat4.create(), vec3.create(), tangent, up);
             mat4.multiply(rotation, rotation, upRotation);
             mat4.multiply(matrix, matrix, rotation);
-            mat4.scale(matrix, matrix, [scale, scale, scale])
+
+            // apply the matrix to the leaf extent vector
+            vec3.transformMat4(leafExtent, leafExtent, matrix);
+            const radiusExtent = this.#getVesselRadiusAtHeight(leafExtent[1]);
+            console.log(leafExtent, radiusExtent);
+
+            // scale the leaf restricted by the bounds of the vessel
+            const scale = Math.random() * 0.4 + 0.6;
+            //mat4.scale(matrix, matrix, [scale, scale, scale]);
         }
 
         // upload the instance matrix buffer
@@ -245,6 +253,8 @@ export class Plant {
 
         if (h < r) {
             return ir + Math.sqrt(r * r - (r - h) * (r - h));
+        } else if (h > vh) {
+            return 0;
         } else if (h > vh - r) {
             return ir + Math.sqrt(r * r - (h - vh + r) * (h - vh + r));
         }

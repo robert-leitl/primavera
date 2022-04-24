@@ -1,4 +1,4 @@
-import { mat4, vec3 } from "gl-matrix";
+import { mat4, vec2, vec3 } from "gl-matrix";
 import { LeafGeometry } from "./leaf-geometry";
 import { GeometryHelper } from "./utils/geometry-helper";
 import { createProgram, makeBuffer, makeVertexArray } from "./utils/webgl-utils";
@@ -9,7 +9,7 @@ import { CubicBezier } from "./utils/cubic-bezier";
 
 export class Plant {
 
-    #STEM_SEGMENTS = 10;
+    #STEM_SEGMENTS = 12;
     #LEAVES_PER_SEGMENT = 2;
     #LEAF_COUNT = this.#STEM_SEGMENTS * this.#LEAVES_PER_SEGMENT;
 
@@ -25,6 +25,7 @@ export class Plant {
         this.vesselHeight = vesselHeight;
         this.vesselRadius = vesselRadius;
         this.vesselBevelRadius = vesselBevelRadius;
+        this.modelMatrix = mat4.translate(mat4.create(), mat4.create(), vec3.fromValues(0, -this.vesselHeight / 2, 0));
 
         /** @type {WebGLRenderingContext} */
         const gl = this.context;
@@ -74,7 +75,7 @@ export class Plant {
 
     render(uniforms, drawGuides = false) {
         // center the plant vertically around the origin
-        const modelMatrix = mat4.translate(mat4.create(), uniforms.worldMatrix, vec3.fromValues(0, -this.vesselHeight / 2, 0));
+        const modelMatrix = mat4.multiply(mat4.create(), uniforms.worldMatrix, this.modelMatrix);
 
         if (drawGuides) {
             this.geometryHelper.render(
@@ -187,6 +188,8 @@ export class Plant {
         const maxOffset = (this.vesselHeight / numInstances) * 0.01;
         const up = vec3.fromValues(0, 0, 1);
         const leafExtent = this.leafGeometry.extent;
+        const extentLength = vec3.length(leafExtent);
+
         for(let i = 0; i < numInstances; ++i) {
             const t = i / (numInstances * 1.25) + 0.05;
             const bindMatrix = this.leafInstances.bindMatrices[i];
@@ -206,13 +209,22 @@ export class Plant {
             mat4.multiply(matrix, matrix, rotation);
 
             // apply the matrix to the leaf extent vector
-            vec3.transformMat4(leafExtent, leafExtent, matrix);
-            const radiusExtent = this.#getVesselRadiusAtHeight(leafExtent[1]);
-            console.log(leafExtent, radiusExtent);
+            const leafTipMatrix = mat4.multiply(mat4.create(), this.modelMatrix, matrix);
+            const leafTip = vec3.transformMat4(vec3.create(), leafExtent, leafTipMatrix);
+            const leafStart = vec3.transformMat4(vec3.create(), vec3.create(), leafTipMatrix);
 
-            // scale the leaf restricted by the bounds of the vessel
-            const scale = Math.random() * 0.4 + 0.6;
-            //mat4.scale(matrix, matrix, [scale, scale, scale]);
+            // ray march the vessel sdf to find the extimated max leaf extent point
+            const ray = vec3.normalize(vec3.create(), vec3.subtract(vec3.create(), leafTip, leafStart));
+            const r = vec3.clone(leafStart);
+            for(let n=0; n<4; ++n) {
+                const o = -this.#getVesselSD(r);
+                vec3.add(r, r, vec3.scale(vec3.create(), ray, o));
+            }
+            
+            // scale the leaf to the bounds of the vessel
+            const boundLeafTipDir = vec3.subtract(vec3.create(), r, leafStart);
+            const scale = vec3.length(boundLeafTipDir) / extentLength;
+            mat4.scale(matrix, matrix, [scale, scale, scale]);
         }
 
         // upload the instance matrix buffer
@@ -246,19 +258,16 @@ export class Plant {
         gl.enable(gl.CULL_FACE);
     }
 
-    #getVesselRadiusAtHeight(h) {
-        const vh = this.vesselHeight;
-        const ir = this.vesselRadius - this.vesselBevelRadius;
-        const r = this.vesselBevelRadius;
+    #getVesselSD(p) {
+        return this.#sdRoundedCylinder(p, this.vesselRadius, this.vesselBevelRadius, this.vesselHeight / 2)
+    }
 
-        if (h < r) {
-            return ir + Math.sqrt(r * r - (r - h) * (r - h));
-        } else if (h > vh) {
-            return 0;
-        } else if (h > vh - r) {
-            return ir + Math.sqrt(r * r - (h - vh + r) * (h - vh + r));
-        }
-
-        return this.vesselRadius;
+    // https://iquilezles.org/articles/distfunctions/
+    #sdRoundedCylinder( p, ra, rb, h ) {
+        const d = vec2.fromValues( 
+            vec2.length(vec2.fromValues(p[0], p[2])) - ra + rb, 
+            Math.abs(p[1]) - h + rb
+        );
+        return Math.min(Math.max(d[0],d[1]), 0.0) + vec2.length(vec2.fromValues(Math.max(d[0], 0.0), Math.max(d[1], 0.0))) - rb;
     }
 }

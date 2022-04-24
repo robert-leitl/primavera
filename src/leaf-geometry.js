@@ -76,7 +76,10 @@ export class LeafGeometry {
     }
 
     get extent() {
-        return vec3.fromValues(...this.contourBezierPoints.a1)
+        const a1 = [...this.contourBezierPoints.a1];
+        a1[1] *= this.#LEAF_LENGTH;
+        a1[2] *= this.#LEAF_BEND;
+        return a1;
     }
 
     #getContourCurve(s) {

@@ -146,7 +146,7 @@ export class Plant {
         const a2 = vec3.fromValues(r1 * Math.cos(randAngle), this.vesselHeight, r1 * Math.sin(randAngle));
 
         // create the control points
-        const capOffset = this.vesselBevelRadius * 0.2;
+        const capOffset = this.vesselBevelRadius * 0.1; // offset to the cap (top and bottom) of the vessel
         randAngle = Math.random() * 2 * Math.PI;
         let randHeight = Math.random() * (h2 - capOffset) + capOffset;
         const r2 = Math.random() * this.vesselRadius;
@@ -187,8 +187,8 @@ export class Plant {
         /** @type {WebGLRenderingContext} */
         const gl = this.context;
 
-        this.averageLeafDuration = 200; // frames
-        this.leafStaggerDelay = 1.5;
+        this.averageLeafDuration = 300; // frames
+        this.leafStaggerDelay = 2.5;
         this.totalDuration = 0;
 
         const upRotation = mat4.rotateX(mat4.create(), mat4.create(), -Math.PI / 2);
@@ -238,7 +238,7 @@ export class Plant {
             this.leafInstances.bindMatrices[i] = matrix;
 
             // store the animation params
-            const duration = this.averageLeafDuration * scale;
+            const duration = Math.max(this.averageLeafDuration * 0.75, this.averageLeafDuration * scale);
             this.leafInstances.animationParams[i] = {
                 duration
             };
@@ -257,7 +257,7 @@ export class Plant {
         const numInstances = this.#LEAF_COUNT;
         const progress = Math.min(this.totalDuration, frames - this.startFrame);
         const enterTransitionDuration = 0.2;
-        const leaveTransitionDuration = 0.3;
+        const leaveTransitionDuration = 0.2;
         const jitterStrength = 0.5;
         
         for(let i = 0; i < numInstances; ++i) {
@@ -279,8 +279,8 @@ export class Plant {
             scale = easing.easeOutCubic(scale);
 
             // timelapse jitter
-            const size = 1 - scale*scale + 0.2;  // jitter strength factor
-            const freq = 10 * scale*scale*0.5 + .5;    // the jitter frequency factor
+            const size = (1 - scale*scale) * 0.8 + 0.2;  // jitter strength factor
+            const freq = 10 * scale*scale*0.5 + 1;    // the jitter frequency factor
             const jitter = perlin.get(t * freq, t * freq) * jitterStrength * size;
 
             const bindMatrix = this.leafInstances.bindMatrices[i];

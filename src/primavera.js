@@ -18,9 +18,9 @@ export class Primavera {
 
     camera = {
         matrix: mat4.create(),
-        near: 90,
+        near: 60,
         far: 150,
-        distance: 120,
+        distance: 100,
         orbit: quat.create(),
         position: vec3.create(),
         rotation: vec3.create(),
@@ -141,6 +141,11 @@ export class Primavera {
             throw new Error('No WebGL 2 context!')
         }
 
+        if (!gl.getExtension("EXT_color_buffer_float")) {
+            console.error("FLOAT color buffer not available");
+            document.body.innerHTML = "This example requires EXT_color_buffer_float which is unavailable on this system."
+        }
+
         ///////////////////////////////////  PROGRAM SETUP
 
         // setup programs
@@ -199,12 +204,21 @@ export class Primavera {
 
         // initial client dimensions
         const clientSize = vec2.fromValues(gl.canvas.clientWidth, gl.canvas.clientHeight);
-        this.particleFBOSize = vec2.clone(clientSize);
 
-        this.particleTexture = createAndSetupTexture(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
-        gl.bindTexture(gl.TEXTURE_2D, this.particleTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.particleFBOSize[0], this.particleFBOSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        this.particleFBO = createFramebuffer(gl, [this.particleTexture]);
+        // init the plant framebuffer and its texture
+        this.plantTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
+        this.plantFBO = createFramebuffer(gl, [this.plantTexture]);
+
+        // init the vessel framebuffer and its textures
+        this.vesselColorTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
+        this.vesselNormalTexture = this.#initFBOTexture(gl, gl.RGBA16F, clientSize);
+        this.vesselFBO = createFramebuffer(gl, [this.vesselColorTexture, this.vesselNormalTexture]);
+
+        // init the blur framebuffer and textures
+        this.hBlurTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
+        this.vBlurTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
+        this.hBlurFBO = createFramebuffer(gl, [this.hBlurTexture]);
+        this.vBlurFBO = createFramebuffer(gl, [this.vBlurTexture]);
 
         // init the pointer rotate control
         this.control = new ArcballControl(this.canvas);
@@ -220,6 +234,19 @@ export class Primavera {
         this.#initTweakpane();
 
         if (this.oninit) this.oninit(this);
+    }
+
+    #initFBOTexture(gl, format, size) {
+        const texture = createAndSetupTexture(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        
+        if (format === gl.RGBA)
+            gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, format, gl.UNSIGNED_BYTE, null);
+        else if(format === gl.RGBA16F)
+            gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA16F, size[0], size[1]);
+
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        return texture;
     }
 
     #initEnvMap() {
@@ -244,15 +271,26 @@ export class Primavera {
 
     #resizeTextures(gl) {
         const clientSize = vec2.fromValues(gl.canvas.clientWidth, gl.canvas.clientHeight);
-        this.particleFBOSize = vec2.clone(clientSize);
         
-        // resize particle texture
-        /*gl.bindTexture(gl.TEXTURE_2D, this.particleTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.particleFBOSize[0], this.particleFBOSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, null);*/
+        this.#resizeTexture(gl, this.plantTexture, gl.RGBA, clientSize);
+        this.#resizeTexture(gl, this.vesselColorTexture, gl.RGBA, clientSize);
+
+        // recreate data  texture
+        this.vesselNormalTexture = this.#initFBOTexture(gl, gl.RGBA16F, clientSize);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.vesselFBO);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.vesselNormalTexture, 0);
 
         // reset bindings
         gl.bindRenderbuffer(gl.RENDERBUFFER, null);
         gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    #resizeTexture(gl, texture, format, size) {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        if (format === gl.RGBA) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, format, gl.UNSIGNED_BYTE, null);
+        }
     }
 
     #updateCameraMatrix() {

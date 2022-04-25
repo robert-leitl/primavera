@@ -6,10 +6,12 @@ import { createProgram, makeBuffer, makeVertexArray } from "./utils/webgl-utils"
 import leafVertShaderSource from './shader/leaf.vert';
 import leafFragShaderSource from './shader/leaf.frag';
 import { CubicBezier } from "./utils/cubic-bezier";
+import { perlin } from "./utils/perlin";
+import { easing } from "./utils/easing";
 
 export class Plant {
 
-    #STEM_SEGMENTS = 12;
+    #STEM_SEGMENTS = 16;
     #LEAVES_PER_SEGMENT = 2;
     #LEAF_COUNT = this.#STEM_SEGMENTS * this.#LEAVES_PER_SEGMENT;
 
@@ -19,12 +21,14 @@ export class Plant {
         context,
         vesselHeight,
         vesselRadius,
-        vesselBevelRadius
+        vesselBevelRadius,
+        animationDoneCallback = null
     ) {
         this.context = context;
         this.vesselHeight = vesselHeight;
         this.vesselRadius = vesselRadius;
         this.vesselBevelRadius = vesselBevelRadius;
+        this.animationDoneCallback = animationDoneCallback;
         this.modelMatrix = mat4.translate(mat4.create(), mat4.create(), vec3.fromValues(0, -this.vesselHeight / 2, 0));
 
         /** @type {WebGLRenderingContext} */
@@ -64,9 +68,9 @@ export class Plant {
         this.#initLeafInstances();
     }
 
-    generate() {
+    generate(frames) {
         this.#generateStem();
-        this.#generateLeaves();
+        this.#generateLeaves(frames);
     }
 
     update(frames) {
@@ -100,7 +104,7 @@ export class Plant {
             matrices: [],
             bindMatrices: [],
             buffer: gl.createBuffer(),
-            scales: []
+            animationParams: []
         }
         const numInstances = this.#LEAF_COUNT;
         for(let i = 0; i < numInstances; ++i) {
@@ -179,9 +183,13 @@ export class Plant {
         }
     }
 
-    #generateLeaves() {
+    #generateLeaves(frames) {
         /** @type {WebGLRenderingContext} */
         const gl = this.context;
+
+        this.averageLeafDuration = 200; // frames
+        this.leafStaggerDelay = 1.5;
+        this.totalDuration = 0;
 
         const upRotation = mat4.rotateX(mat4.create(), mat4.create(), -Math.PI / 2);
         const numInstances = this.#LEAF_COUNT;
@@ -229,13 +237,17 @@ export class Plant {
             // store the matrix as the leafs bind position
             this.leafInstances.bindMatrices[i] = matrix;
 
-            // store the scale to determine the leaf animation duration
-            this.leafInstances.scales[i] = scale;
+            // store the animation params
+            const duration = this.averageLeafDuration * scale;
+            this.leafInstances.animationParams[i] = {
+                duration
+            };
+
+            this.totalDuration = Math.max(this.totalDuration, duration + this.leafStaggerDelay * i);
         }
 
-        // calculate the total leaf animation duration
-        this.meanLeafDuration = 25; // frames
-        this.leafDuration = this.leafInstances.scales.reduce((sum, scale) => sum + scale * this.meanLeafDuration, 0);
+        // reset the growth animation
+        this.startFrame = frames;
     }
 
     #updateLeaves(frames) {
@@ -243,16 +255,37 @@ export class Plant {
         const gl = this.context;
 
         const numInstances = this.#LEAF_COUNT;
-        const leafDuration = 25; // frames
-        const staggerDelay = 5; // frames
-        const duration = leafDuration * numInstances - Math.abs(leafDuration - staggerDelay) * (numInstances - 1); // frames
-        const progress = frames % duration;
+        const progress = Math.min(this.totalDuration, frames - this.startFrame);
+        const enterTransitionDuration = 0.2;
+        const leaveTransitionDuration = 0.3;
+        const jitterStrength = 0.5;
         
         for(let i = 0; i < numInstances; ++i) {
-            const off = i * staggerDelay;
-            const t = Math.min(leafDuration, Math.max(0, progress - off) ) / leafDuration;
+            const leafDuration = this.leafInstances.animationParams[i].duration;
+            const off = i * this.leafStaggerDelay;
+            // the t value (0...1) fro the whole animation of this leaf
+            let t = Math.min(leafDuration, Math.max(0, progress - off) ) / leafDuration;
+
+            // the scale t value (0...1): goes from 0 to 1 and then back from 1 to 0
+            let scale = t;
+
+            if (t <= enterTransitionDuration) {
+                scale /= enterTransitionDuration;
+            } else if (t > (1 - leaveTransitionDuration)) {
+                scale = 1 - (t - (1 - leaveTransitionDuration)) / leaveTransitionDuration;
+            } else {
+                scale = 1;
+            }
+            scale = easing.easeOutCubic(scale);
+
+            // timelapse jitter
+            const size = 1 - scale*scale + 0.2;  // jitter strength factor
+            const freq = 10 * scale*scale*0.5 + .5;    // the jitter frequency factor
+            const jitter = perlin.get(t * freq, t * freq) * jitterStrength * size;
+
             const bindMatrix = this.leafInstances.bindMatrices[i];
-            const matrix = mat4.fromScaling(mat4.create(), vec3.fromValues(t, t, t));
+            const matrix = mat4.fromScaling(mat4.create(), vec3.fromValues(scale, scale, scale));
+            mat4.rotateX(matrix, matrix, jitter);
             mat4.multiply(matrix, bindMatrix, matrix);
             
 
@@ -264,6 +297,11 @@ export class Plant {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.leafInstances.buffer);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.leafInstances.matricesArray);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        // notify on animation done
+        if (progress >= this.totalDuration && this.animationDoneCallback) {
+            this.animationDoneCallback();
+        }
     }
 
     #renderLeaves(uniforms, modelMatrix) {

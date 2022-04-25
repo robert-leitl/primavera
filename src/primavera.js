@@ -190,9 +190,10 @@ export class Primavera {
             gl,
             this.VESSEL_HEIGHT, 
             this.VESSEL_RADIUS, 
-            this.VESSEL_BEVEL_RADIUS
+            this.VESSEL_BEVEL_RADIUS,
+            () => this.plant.generate(this.#frames)
         );
-        this.plant.generate();
+        this.plant.generate(this.#frames);
 
         /////////////////////////////////// FRAMEBUFFER SETUP
 
@@ -293,7 +294,7 @@ export class Primavera {
             const plantFolder = this.pane.addFolder({ title: 'Plant' });
             plantFolder.addInput(this.plantSettings, 'showGuides', { label: 'guides' });
             const plantGenerateBtn = plantFolder.addButton({ title: 'generate' });
-            plantGenerateBtn.on('click', () => this.plant.generate());
+            plantGenerateBtn.on('click', () => this.plant.generate(this.#frames));
         }
     }
 

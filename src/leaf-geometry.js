@@ -83,7 +83,7 @@ export class LeafGeometry {
     }
 
     #getContourCurve(s) {
-        const startWidth = 0.1 * this.#LEAF_WIDTH;
+        const startWidth = 0.02 * this.#LEAF_WIDTH;
         const a0 = [...this.contourBezierPoints.a0];
         const c0 = [...this.contourBezierPoints.c0];
         const a1 = [...this.contourBezierPoints.a1];

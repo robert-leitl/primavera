@@ -68,7 +68,7 @@ export class Primavera {
         mat4.invert(this.drawUniforms.worldInverseTransposeMatrix, this.drawUniforms.worldMatrix);
         mat4.transpose(this.drawUniforms.worldInverseTransposeMatrix, this.drawUniforms.worldInverseTransposeMatrix);
 
-        this.plant.update(this.#deltaTime);
+        this.plant.update(this.#frames);
 
         this.#render();
 

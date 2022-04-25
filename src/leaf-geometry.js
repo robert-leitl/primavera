@@ -8,8 +8,8 @@ export class LeafGeometry {
     #normals = [];
     #uvs = [];
 
-    #LEAF_LENGTH = 1 * 20;
-    #LEAF_WIDTH = .3 * 20;
+    #LEAF_LENGTH = 1 * 10;
+    #LEAF_WIDTH = .3 * 25;
     #LEAF_BEND = 1 * 20;
 
     contourBezierPoints = {

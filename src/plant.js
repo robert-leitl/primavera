@@ -66,11 +66,11 @@ export class Plant {
 
     generate() {
         this.#generateStem();
-        this.#generateLeafs();
+        this.#generateLeaves();
     }
 
-    update() {
-
+    update(frames) {
+        this.#updateLeaves(frames);
     }
 
     render(uniforms, drawGuides = false) {
@@ -87,7 +87,7 @@ export class Plant {
             );
         }
 
-        this.#renderLeafs(uniforms, modelMatrix);
+        this.#renderLeaves(uniforms, modelMatrix);
     }
 
     #initLeafInstances() {
@@ -99,15 +99,15 @@ export class Plant {
             matricesArray: new Float32Array(this.#LEAF_COUNT * 16),
             matrices: [],
             bindMatrices: [],
-            buffer: gl.createBuffer()
+            buffer: gl.createBuffer(),
+            scales: []
         }
         const numInstances = this.#LEAF_COUNT;
         for(let i = 0; i < numInstances; ++i) {
             const instanceMatrixArray = new Float32Array(this.leafInstances.matricesArray.buffer, i * 16 * 4, 16);
-            const bindMatrix = mat4.create();
-            instanceMatrixArray.set(bindMatrix);
+            instanceMatrixArray.set(mat4.create());
             this.leafInstances.matrices.push(instanceMatrixArray);
-            this.leafInstances.bindMatrices.push(bindMatrix);
+            this.leafInstances.bindMatrices.push(mat4.create());
         }
 
         gl.bindVertexArray(this.leafVAO);
@@ -179,21 +179,21 @@ export class Plant {
         }
     }
 
-    #generateLeafs() {
+    #generateLeaves() {
         /** @type {WebGLRenderingContext} */
         const gl = this.context;
 
         const upRotation = mat4.rotateX(mat4.create(), mat4.create(), -Math.PI / 2);
         const numInstances = this.#LEAF_COUNT;
-        const maxOffset = (this.vesselHeight / numInstances) * 0.01;
+        const maxOffset = (this.vesselHeight / numInstances) * 0.015;
         const up = vec3.fromValues(0, 0, 1);
         const leafExtent = this.leafGeometry.extent;
         const extentLength = vec3.length(leafExtent);
 
         for(let i = 0; i < numInstances; ++i) {
-            const t = i / (numInstances * 1.25) + 0.05;
-            const bindMatrix = this.leafInstances.bindMatrices[i];
-            const matrix = this.leafInstances.matrices[i];
+            const t = i / (numInstances * 1.2) + 0.03;
+            const bindMatrix = mat4.create();
+            const matrix = mat4.create();
             const tOff = Math.random() * maxOffset - maxOffset / 2;
 
             // move the leaf to the point on the stem curve
@@ -214,17 +214,50 @@ export class Plant {
             const leafStart = vec3.transformMat4(vec3.create(), vec3.create(), leafTipMatrix);
 
             // ray march the vessel sdf to find the extimated max leaf extent point
-            const ray = vec3.normalize(vec3.create(), vec3.subtract(vec3.create(), leafTip, leafStart));
-            const r = vec3.clone(leafStart);
-            for(let n=0; n<4; ++n) {
-                const o = -this.#getVesselSD(r);
-                vec3.add(r, r, vec3.scale(vec3.create(), ray, o));
+            const rayDirection = vec3.normalize(vec3.create(), vec3.subtract(vec3.create(), leafTip, leafStart));
+            const ray = vec3.clone(leafStart);
+            for(let n = 0; n < 4; ++n) {
+                const sd = -this.#getVesselSD(ray);
+                vec3.add(ray, ray, vec3.scale(vec3.create(), rayDirection, sd));
             }
             
             // scale the leaf to the bounds of the vessel
-            const boundLeafTipDir = vec3.subtract(vec3.create(), r, leafStart);
-            const scale = vec3.length(boundLeafTipDir) / extentLength;
+            const boundLeafTipDir = vec3.subtract(vec3.create(), ray, leafStart);
+            const scale = Math.min(1.2, vec3.length(boundLeafTipDir) / extentLength);
             mat4.scale(matrix, matrix, [scale, scale, scale]);
+
+            // store the matrix as the leafs bind position
+            this.leafInstances.bindMatrices[i] = matrix;
+
+            // store the scale to determine the leaf animation duration
+            this.leafInstances.scales[i] = scale;
+        }
+
+        // calculate the total leaf animation duration
+        this.meanLeafDuration = 25; // frames
+        this.leafDuration = this.leafInstances.scales.reduce((sum, scale) => sum + scale * this.meanLeafDuration, 0);
+    }
+
+    #updateLeaves(frames) {
+        /** @type {WebGLRenderingContext} */
+        const gl = this.context;
+
+        const numInstances = this.#LEAF_COUNT;
+        const leafDuration = 25; // frames
+        const staggerDelay = 5; // frames
+        const duration = leafDuration * numInstances - Math.abs(leafDuration - staggerDelay) * (numInstances - 1); // frames
+        const progress = frames % duration;
+        
+        for(let i = 0; i < numInstances; ++i) {
+            const off = i * staggerDelay;
+            const t = Math.min(leafDuration, Math.max(0, progress - off) ) / leafDuration;
+            const bindMatrix = this.leafInstances.bindMatrices[i];
+            const matrix = mat4.fromScaling(mat4.create(), vec3.fromValues(t, t, t));
+            mat4.multiply(matrix, bindMatrix, matrix);
+            
+
+            // apply the matrix to the instance matrix
+            mat4.copy(this.leafInstances.matrices[i], matrix);
         }
 
         // upload the instance matrix buffer
@@ -233,7 +266,7 @@ export class Plant {
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
     }
 
-    #renderLeafs(uniforms, modelMatrix) {
+    #renderLeaves(uniforms, modelMatrix) {
         /** @type {WebGLRenderingContext} */
         const gl = this.context;
 
@@ -259,7 +292,8 @@ export class Plant {
     }
 
     #getVesselSD(p) {
-        return this.#sdRoundedCylinder(p, this.vesselRadius, this.vesselBevelRadius, this.vesselHeight / 2)
+        const padding = 0.95;
+        return this.#sdRoundedCylinder(p, this.vesselRadius * padding, this.vesselBevelRadius * padding, (this.vesselHeight / 2) * padding)
     }
 
     // https://iquilezles.org/articles/distfunctions/

@@ -87,23 +87,27 @@ export class Primavera {
 
         // draw plant color and depth
         setFramebuffer(gl, this.plantFBO, this.drawBufferSize[0], this.drawBufferSize[1]);
-        gl.clearColor(1, 1, 1, 1);
+        gl.clearColor(1, 1, 1, 0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         this.plant.render(this.drawUniforms, this.plantSettings.showGuides);
         setFramebuffer(gl, null, this.drawBufferSize[0], this.drawBufferSize[1]);
 
         // draw the delta depth texture
         setFramebuffer(gl, this.deltaDepthFBO, this.drawBufferSize[0], this.drawBufferSize[1]);
+        gl.useProgram(this.deltaDepthProgram);
         gl.clearColor(1, 1, 1, 0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        gl.useProgram(this.deltaDepthProgram);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.plantColorTexture);
         gl.uniform1i(this.deltaDepthLocations.u_colorTexture, 0);
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, this.plantDepthTexture);
         gl.uniform1i(this.deltaDepthLocations.u_depthTexture, 1);
-        this.#drawVessel(false, true);
+        gl.uniformMatrix4fv(this.deltaDepthLocations.u_viewMatrix, false, this.drawUniforms.viewMatrix);
+        gl.uniformMatrix4fv(this.deltaDepthLocations.u_projectionMatrix, false, this.drawUniforms.projectionMatrix);
+        gl.uniformMatrix4fv(this.deltaDepthLocations.u_worldMatrix, false, this.drawUniforms.worldMatrix);
+        gl.bindVertexArray(this.vesselVAO);
+        gl.drawElements(gl.TRIANGLES, this.vesselBuffers.numElem, gl.UNSIGNED_SHORT, 0);
         setFramebuffer(gl, null, this.drawBufferSize[0], this.drawBufferSize[1]);
 
         // horizontal blur pass
@@ -140,7 +144,7 @@ export class Primavera {
             gl.uniform2f(this.blurLocations.u_direction, 0, 1);
         else
             gl.uniform2f(this.blurLocations.u_direction, 1, 0);
-        gl.uniform1f(this.blurLocations.u_scale, 1);
+        gl.uniform1f(this.blurLocations.u_scale, 2.5);
         gl.bindVertexArray(this.quadVAO);
         gl.drawArrays(gl.TRIANGLES, 0, this.quadBuffers.numElem);
     }
@@ -284,17 +288,17 @@ export class Primavera {
         this.drawBufferSize = vec2.clone(clientSize);
 
         // init the plant framebuffer and its textures
-        this.plantColorTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
-        this.plantDepthTexture = this.#initFBOTexture(gl, gl.DEPTH_COMPONENT32F, clientSize);
+        this.plantColorTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
+        this.plantDepthTexture = this.#initFBOTexture(gl, gl.DEPTH_COMPONENT32F, clientSize, gl.NEAREST, gl.NEAREST, gl.REPEAT, gl.REPEAT);
         this.plantFBO = createFramebuffer(gl, [this.plantColorTexture], this.plantDepthTexture);
 
         // init plant + vessel delta depth framebuffer and its textures (contains the CoC within the alpha channel)
-        this.deltaDepthColorTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
+        this.deltaDepthColorTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
         this.deltaDepthFBO = createFramebuffer(gl, [this.deltaDepthColorTexture]);
 
         // init the blur framebuffer and textures
-        this.hBlurTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
-        this.vBlurTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
+        this.hBlurTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
+        this.vBlurTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
         this.hBlurFBO = createFramebuffer(gl, [this.hBlurTexture]);
         this.vBlurFBO = createFramebuffer(gl, [this.vBlurTexture]);
 
@@ -314,8 +318,8 @@ export class Primavera {
         if (this.oninit) this.oninit(this);
     }
 
-    #initFBOTexture(gl, format, size) {
-        const texture = createAndSetupTexture(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
+    #initFBOTexture(gl, format, size, minFilter, magFilter, wrapS, wrapT) {
+        const texture = createAndSetupTexture(gl, minFilter, magFilter, wrapS, wrapT);
         gl.bindTexture(gl.TEXTURE_2D, texture);
         
         if (format === gl.RGBA)
@@ -372,6 +376,8 @@ export class Primavera {
             gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, format, gl.UNSIGNED_BYTE, null);
         else if (format === gl.DEPTH_COMPONENT32F) 
             gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
+
+        gl.bindTexture(gl.TEXTURE_2D, null);
     }
 
     #updateCameraMatrix() {

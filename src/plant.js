@@ -330,7 +330,7 @@ export class Plant {
     }
 
     #getVesselSD(p) {
-        const padding = 0.95;
+        const padding = 0.93;
         return this.#sdRoundedCylinder(p, this.vesselRadius * padding, this.vesselBevelRadius * padding, (this.vesselHeight / 2) * padding)
     }
 

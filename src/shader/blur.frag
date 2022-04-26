@@ -13,13 +13,13 @@ out vec4 blurColor;
 void main() {
     vec2 uv = gl_FragCoord.xy / vec2(textureSize(u_colorTexture, 0));
 
-    /*blur(
+    blur(
         uv,
         u_direction,
         u_scale,
         u_colorTexture,
         blurColor
-    );*/
+    );
 
-    blurColor = texture(u_colorTexture, uv);
+    //blurColor = vec4(texture(u_colorTexture, uv).a);
 }

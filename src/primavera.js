@@ -1,12 +1,16 @@
 import { mat3, mat4, quat, vec2, vec3 } from 'gl-matrix';
 import { OrbitControl } from './utils/orbit-control';
 import { createAndSetupTexture, createFramebuffer, createProgram, makeBuffer, makeVertexArray, resizeCanvasToDisplaySize, setFramebuffer } from './utils/webgl-utils';
-
-import colorVertShaderSource from './shader/color.vert';
-import colorFragShaderSource from './shader/color.frag';
 import { ArcballControl } from './utils/arcball-control';
 import { VesselGeometry } from './vessel-geometry';
 import { Plant } from './plant';
+
+import vesselVertShaderSource from './shader/vessel.vert';
+import vesselFragShaderSource from './shader/vessel.frag';
+import deltaDepthVertShaderSource from './shader/delta-depth.vert';
+import deltaDepthFragShaderSource from './shader/delta-depth.frag';
+import blurVertShaderSource from './shader/blur.vert';
+import blurFragShaderSource from './shader/blur.frag';
 
 export class Primavera {
     oninit;
@@ -28,7 +32,7 @@ export class Primavera {
     };
 
     plantSettings = {
-        showGuides: true
+        showGuides: false
     }
 
     constructor(canvas, pane, oninit = null) {
@@ -81,13 +85,40 @@ export class Primavera {
         /** @type {WebGLRenderingContext} */
         const gl = this.gl;
 
+        // draw plant color and depth
+        setFramebuffer(gl, this.plantFBO, this.drawBufferSize[0], this.drawBufferSize[1]);
         gl.clearColor(1, 1, 1, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        //this.#drawVessel(true);
-
         this.plant.render(this.drawUniforms, this.plantSettings.showGuides);
+        setFramebuffer(gl, null, this.drawBufferSize[0], this.drawBufferSize[1]);
 
+        // draw the delta depth texture
+        setFramebuffer(gl, this.deltaDepthFBO, this.drawBufferSize[0], this.drawBufferSize[1]);
+        gl.clearColor(1, 1, 1, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.useProgram(this.deltaDepthProgram);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.plantColorTexture);
+        gl.uniform1i(this.deltaDepthLocations.u_colorTexture, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, this.plantDepthTexture);
+        gl.uniform1i(this.deltaDepthLocations.u_depthTexture, 1);
+        this.#drawVessel(false, true);
+        setFramebuffer(gl, null, this.drawBufferSize[0], this.drawBufferSize[1]);
+
+        // horizontal blur pass
+        setFramebuffer(gl, this.hBlurFBO, this.drawBufferSize[0], this.drawBufferSize[1]);
+        this.#blurPass(this.deltaDepthColorTexture);
+        setFramebuffer(gl, null, this.drawBufferSize[0], this.drawBufferSize[1]);
+
+        // vertical blur pass
+        setFramebuffer(gl, this.vBlurFBO, this.drawBufferSize[0], this.drawBufferSize[1]);
+        this.#blurPass(this.hBlurTexture, true);
+        setFramebuffer(gl, null, this.drawBufferSize[0], this.drawBufferSize[1]);
+
+        // final composition pass with the vessel front surface
+        gl.clearColor(1, 1, 1, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         this.#drawVessel(false);
     }
 
@@ -95,11 +126,30 @@ export class Primavera {
         this.#isDestroyed = true;
     }
 
-    #drawVessel(backSide) {
+    #blurPass(inTexture, vertical = false) {
         /** @type {WebGLRenderingContext} */
         const gl = this.gl;
 
-        gl.useProgram(this.colorProgram);
+        gl.useProgram(this.blurProgram);
+        gl.clearColor(1, 1, 1, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, inTexture);
+        gl.uniform1i(this.blurLocations.u_colorTexture, 0);
+        if (vertical)
+            gl.uniform2f(this.blurLocations.u_direction, 0, 1);
+        else
+            gl.uniform2f(this.blurLocations.u_direction, 1, 0);
+        gl.uniform1f(this.blurLocations.u_scale, 1);
+        gl.bindVertexArray(this.quadVAO);
+        gl.drawArrays(gl.TRIANGLES, 0, this.quadBuffers.numElem);
+    }
+
+    #drawVessel(backSide, depthOnly = false) {
+        /** @type {WebGLRenderingContext} */
+        const gl = this.gl;
+
+        gl.useProgram(this.vesselProgram);
 
         gl.enable(gl.CULL_FACE);
         gl.enable(gl.DEPTH_TEST);
@@ -116,18 +166,20 @@ export class Primavera {
                 vec3.fromValues(-1, -1, -1));
         }
 
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        if (!depthOnly) {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, this.vBlurTexture);
+            gl.uniform1i(this.vesselLocations.u_colorTexture, 0);
+        }
 
-        gl.uniformMatrix4fv(this.colorLocations.u_viewMatrix, false, this.drawUniforms.viewMatrix);
-        gl.uniformMatrix4fv(this.colorLocations.u_projectionMatrix, false, this.drawUniforms.projectionMatrix);
-        gl.uniform3f(this.colorLocations.u_cameraPosition, this.camera.position[0], this.camera.position[1], this.camera.position[2]);
-        gl.uniformMatrix4fv(this.colorLocations.u_worldMatrix, false, this.drawUniforms.worldMatrix);
-        gl.uniformMatrix4fv(this.colorLocations.u_worldInverseTransposeMatrix, false, worldInverseTransposeMatrix);
+        gl.uniformMatrix4fv(this.vesselLocations.u_viewMatrix, false, this.drawUniforms.viewMatrix);
+        gl.uniformMatrix4fv(this.vesselLocations.u_projectionMatrix, false, this.drawUniforms.projectionMatrix);
+        gl.uniform3f(this.vesselLocations.u_cameraPosition, this.camera.position[0], this.camera.position[1], this.camera.position[2]);
+        gl.uniformMatrix4fv(this.vesselLocations.u_worldMatrix, false, this.drawUniforms.worldMatrix);
+        gl.uniformMatrix4fv(this.vesselLocations.u_worldInverseTransposeMatrix, false, worldInverseTransposeMatrix);
         gl.bindVertexArray(this.vesselVAO);
         gl.drawElements(gl.TRIANGLES, this.vesselBuffers.numElem, gl.UNSIGNED_SHORT, 0);
 
-        gl.disable(gl.BLEND);
         gl.cullFace(gl.BACK);
     }
 
@@ -149,18 +201,35 @@ export class Primavera {
         ///////////////////////////////////  PROGRAM SETUP
 
         // setup programs
-        this.colorProgram = createProgram(gl, [colorVertShaderSource, colorFragShaderSource], null, { a_position: 0, a_normal: 1, a_uv: 2 });
+        this.deltaDepthProgram = createProgram(gl, [deltaDepthVertShaderSource, deltaDepthFragShaderSource], null, { a_position: 0 });
+        this.blurProgram = createProgram(gl, [blurVertShaderSource, blurFragShaderSource], null, { a_position: 0 });
+        this.vesselProgram = createProgram(gl, [vesselVertShaderSource, vesselFragShaderSource], null, { a_position: 0, a_normal: 1, a_uv: 2 });
 
         // find the locations
-        this.colorLocations = {
-            a_position: gl.getAttribLocation(this.colorProgram, 'a_position'),
-            a_normal: gl.getAttribLocation(this.colorProgram, 'a_normal'),
-            a_uv: gl.getAttribLocation(this.colorProgram, 'a_uv'),
-            u_worldMatrix: gl.getUniformLocation(this.colorProgram, 'u_worldMatrix'),
-            u_viewMatrix: gl.getUniformLocation(this.colorProgram, 'u_viewMatrix'),
-            u_projectionMatrix: gl.getUniformLocation(this.colorProgram, 'u_projectionMatrix'),
-            u_worldInverseTransposeMatrix: gl.getUniformLocation(this.colorProgram, 'u_worldInverseTransposeMatrix'),
-            u_cameraPosition: gl.getUniformLocation(this.colorProgram, 'u_cameraPosition')
+        this.deltaDepthLocations = {
+            a_position: gl.getAttribLocation(this.deltaDepthProgram, 'a_position'),
+            u_worldMatrix: gl.getUniformLocation(this.deltaDepthProgram, 'u_worldMatrix'),
+            u_viewMatrix: gl.getUniformLocation(this.deltaDepthProgram, 'u_viewMatrix'),
+            u_projectionMatrix: gl.getUniformLocation(this.deltaDepthProgram, 'u_projectionMatrix'),
+            u_colorTexture: gl.getUniformLocation(this.deltaDepthProgram, 'u_colorTexture'),
+            u_depthTexture: gl.getUniformLocation(this.deltaDepthProgram, 'u_depthTexture')
+        };
+        this.blurLocations = {
+            a_position: gl.getAttribLocation(this.blurProgram, 'a_position'),
+            u_colorTexture: gl.getUniformLocation(this.blurProgram, 'u_colorTexture'),
+            u_scale: gl.getUniformLocation(this.blurProgram, 'u_scale'),
+            u_direction: gl.getUniformLocation(this.blurProgram, 'u_direction')
+        };
+        this.vesselLocations = {
+            a_position: gl.getAttribLocation(this.vesselProgram, 'a_position'),
+            a_normal: gl.getAttribLocation(this.vesselProgram, 'a_normal'),
+            a_uv: gl.getAttribLocation(this.vesselProgram, 'a_uv'),
+            u_worldMatrix: gl.getUniformLocation(this.vesselProgram, 'u_worldMatrix'),
+            u_viewMatrix: gl.getUniformLocation(this.vesselProgram, 'u_viewMatrix'),
+            u_projectionMatrix: gl.getUniformLocation(this.vesselProgram, 'u_projectionMatrix'),
+            u_worldInverseTransposeMatrix: gl.getUniformLocation(this.vesselProgram, 'u_worldInverseTransposeMatrix'),
+            u_cameraPosition: gl.getUniformLocation(this.vesselProgram, 'u_cameraPosition'),
+            u_colorTexture: gl.getUniformLocation(this.vesselProgram, 'u_colorTexture')
         };
         
         // setup uniforms
@@ -186,9 +255,17 @@ export class Primavera {
             numElem: this.vesselGeometry.indices.length
         };
         this.vesselVAO = makeVertexArray(gl, [
-            [this.vesselBuffers.position, this.colorLocations.a_position, 3],
-            [this.vesselBuffers.normal, this.colorLocations.a_normal, 3]
+            [this.vesselBuffers.position, this.vesselLocations.a_position, 3],
+            [this.vesselBuffers.normal, this.vesselLocations.a_normal, 3]
         ], this.vesselGeometry.indices);
+
+        // create quad VAO
+        const quadPositions = [-1, -1, 3, -1, -1, 3];
+        this.quadBuffers = {
+            position: makeBuffer(gl, new Float32Array(quadPositions), gl.STATIC_DRAW),
+            numElem: quadPositions.length / 2
+        };
+        this.quadVAO = makeVertexArray(gl, [[this.quadBuffers.position, 0, 2]]);
 
         // create the plant
         this.plant = new Plant(
@@ -204,15 +281,16 @@ export class Primavera {
 
         // initial client dimensions
         const clientSize = vec2.fromValues(gl.canvas.clientWidth, gl.canvas.clientHeight);
+        this.drawBufferSize = vec2.clone(clientSize);
 
-        // init the plant framebuffer and its texture
-        this.plantTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
-        this.plantFBO = createFramebuffer(gl, [this.plantTexture]);
+        // init the plant framebuffer and its textures
+        this.plantColorTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
+        this.plantDepthTexture = this.#initFBOTexture(gl, gl.DEPTH_COMPONENT32F, clientSize);
+        this.plantFBO = createFramebuffer(gl, [this.plantColorTexture], this.plantDepthTexture);
 
-        // init the vessel framebuffer and its textures
-        this.vesselColorTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
-        this.vesselNormalTexture = this.#initFBOTexture(gl, gl.RGBA16F, clientSize);
-        this.vesselFBO = createFramebuffer(gl, [this.vesselColorTexture, this.vesselNormalTexture]);
+        // init plant + vessel delta depth framebuffer and its textures (contains the CoC within the alpha channel)
+        this.deltaDepthColorTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
+        this.deltaDepthFBO = createFramebuffer(gl, [this.deltaDepthColorTexture]);
 
         // init the blur framebuffer and textures
         this.hBlurTexture = this.#initFBOTexture(gl, gl.RGBA, clientSize);
@@ -242,6 +320,8 @@ export class Primavera {
         
         if (format === gl.RGBA)
             gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, format, gl.UNSIGNED_BYTE, null);
+        else if (format === gl.DEPTH_COMPONENT32F) 
+            gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
         else if(format === gl.RGBA16F)
             gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA16F, size[0], size[1]);
 
@@ -271,14 +351,13 @@ export class Primavera {
 
     #resizeTextures(gl) {
         const clientSize = vec2.fromValues(gl.canvas.clientWidth, gl.canvas.clientHeight);
+        this.drawBufferSize = vec2.clone(clientSize);
         
-        this.#resizeTexture(gl, this.plantTexture, gl.RGBA, clientSize);
-        this.#resizeTexture(gl, this.vesselColorTexture, gl.RGBA, clientSize);
-
-        // recreate data  texture
-        this.vesselNormalTexture = this.#initFBOTexture(gl, gl.RGBA16F, clientSize);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.vesselFBO);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.vesselNormalTexture, 0);
+        this.#resizeTexture(gl, this.plantColorTexture, gl.RGBA, clientSize);
+        this.#resizeTexture(gl, this.plantDepthTexture, gl.DEPTH_COMPONENT32F, clientSize);
+        this.#resizeTexture(gl, this.deltaDepthColorTexture, gl.RGBA, clientSize);
+        this.#resizeTexture(gl, this.hBlurTexture, gl.RGBA, clientSize);
+        this.#resizeTexture(gl, this.vBlurTexture, gl.RGBA, clientSize);
 
         // reset bindings
         gl.bindRenderbuffer(gl.RENDERBUFFER, null);
@@ -288,9 +367,11 @@ export class Primavera {
 
     #resizeTexture(gl, texture, format, size) {
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        if (format === gl.RGBA) {
+
+        if (format === gl.RGBA) 
             gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, format, gl.UNSIGNED_BYTE, null);
-        }
+        else if (format === gl.DEPTH_COMPONENT32F) 
+            gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
     }
 
     #updateCameraMatrix() {

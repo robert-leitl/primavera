@@ -1,7 +1,7 @@
 import { mat4, vec2, vec3 } from "gl-matrix";
 import { LeafGeometry } from "./leaf-geometry";
 import { GeometryHelper } from "./utils/geometry-helper";
-import { createProgram, makeBuffer, makeVertexArray } from "./utils/webgl-utils";
+import { createAndSetupTexture, createProgram, makeBuffer, makeVertexArray } from "./utils/webgl-utils";
 
 import leafVertShaderSource from './shader/leaf.vert';
 import leafFragShaderSource from './shader/leaf.frag';
@@ -47,7 +47,8 @@ export class Plant {
             u_viewMatrix: gl.getUniformLocation(this.leafProgram, 'u_viewMatrix'),
             u_projectionMatrix: gl.getUniformLocation(this.leafProgram, 'u_projectionMatrix'),
             u_worldInverseTransposeMatrix: gl.getUniformLocation(this.leafProgram, 'u_worldInverseTransposeMatrix'),
-            u_cameraPosition: gl.getUniformLocation(this.leafProgram, 'u_cameraPosition')
+            u_cameraPosition: gl.getUniformLocation(this.leafProgram, 'u_cameraPosition'),
+            u_gradientTexture: gl.getUniformLocation(this.leafProgram, 'u_gradientTexture')
         };
 
         // create leaf VAO
@@ -64,6 +65,20 @@ export class Plant {
             [this.leafBuffers.normal, this.leafLocations.a_normal, 3],
             [this.leafBuffers.uv, this.leafLocations.a_uv, 2]
         ], this.leafGeometry.indices);
+
+        // create leaf color gradient texture
+        this.leafGradientTexture = createAndSetupTexture(gl, gl.LINEAR, gl.LINEAR, gl.MIRRORED_REPEAT, gl.MIRRORED_REPEAT);
+        const data = new Uint8Array([
+            221, 255, 185,
+            134, 224, 69,
+            114, 214, 80,
+            134, 224, 69,
+            134, 224, 69,
+            211, 245, 144,
+            225, 255, 174
+        ]);
+        gl.bindTexture(gl.TEXTURE_2D, this.leafGradientTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 7, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, data);
 
         this.#initLeafInstances();
     }
@@ -310,23 +325,39 @@ export class Plant {
 
         gl.useProgram(this.leafProgram);
 
-        gl.disable(gl.CULL_FACE);
- 
         gl.bindVertexArray(this.leafVAO);
         gl.uniformMatrix4fv(this.leafLocations.u_viewMatrix, false, uniforms.viewMatrix);
         gl.uniformMatrix4fv(this.leafLocations.u_projectionMatrix, false, uniforms.projectionMatrix);
         gl.uniform3f(this.leafLocations.u_cameraPosition, uniforms.cameraMatrix[12], uniforms.cameraMatrix[14], uniforms.cameraMatrix[14]);
         gl.uniformMatrix4fv(this.leafLocations.u_worldMatrix, false, modelMatrix);
         gl.uniformMatrix4fv(this.leafLocations.u_worldInverseTransposeMatrix, false, uniforms.worldInverseTransposeMatrix);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.leafGradientTexture);
+        gl.uniform1i(this.leafProgram.u_gradientTexture, 0);
         gl.drawElementsInstanced(
             gl.TRIANGLES,
             this.leafBuffers.numElem,
             gl.UNSIGNED_SHORT,
             0,
             this.#LEAF_COUNT
-        )
+        );
 
-        gl.enable(gl.CULL_FACE);
+        // draw the back side of the leaf with inverted normals
+        gl.cullFace(gl.FRONT);
+        const worldInverseTransposeMatrix = mat4.scale(
+            mat4.create(),
+            uniforms.worldInverseTransposeMatrix,
+            vec3.fromValues(-1, -1, -1));
+        gl.uniformMatrix4fv(this.leafLocations.u_worldInverseTransposeMatrix, false, worldInverseTransposeMatrix);
+        gl.drawElementsInstanced(
+            gl.TRIANGLES,
+            this.leafBuffers.numElem,
+            gl.UNSIGNED_SHORT,
+            0,
+            this.#LEAF_COUNT
+        );
+
+        gl.cullFace(gl.BACK);
     }
 
     #getVesselSD(p) {

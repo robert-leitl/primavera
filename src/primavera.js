@@ -144,7 +144,7 @@ export class Primavera {
             gl.uniform2f(this.blurLocations.u_direction, 0, 1);
         else
             gl.uniform2f(this.blurLocations.u_direction, 1, 0);
-        gl.uniform1f(this.blurLocations.u_scale, 2.5);
+        gl.uniform1f(this.blurLocations.u_scale, 2);
         gl.bindVertexArray(this.quadVAO);
         gl.drawArrays(gl.TRIANGLES, 0, this.quadBuffers.numElem);
     }

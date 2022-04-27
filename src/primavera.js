@@ -22,9 +22,9 @@ export class Primavera {
 
     camera = {
         matrix: mat4.create(),
-        near: 60,
+        near: 57,
         far: 150,
-        distance: 100,
+        distance: 90,
         orbit: quat.create(),
         position: vec3.create(),
         rotation: vec3.create(),
@@ -144,7 +144,7 @@ export class Primavera {
             gl.uniform2f(this.blurLocations.u_direction, 0, 1);
         else
             gl.uniform2f(this.blurLocations.u_direction, 1, 0);
-        gl.uniform1f(this.blurLocations.u_scale, 2);
+        gl.uniform1f(this.blurLocations.u_scale, 2.5);
         gl.bindVertexArray(this.quadVAO);
         gl.drawArrays(gl.TRIANGLES, 0, this.quadBuffers.numElem);
     }

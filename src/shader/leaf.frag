@@ -35,5 +35,5 @@ void main() {
     // the diffuse term
     float diffuse = (NdL * NdL * NdL) * 0.1 + .95;
 
-    outColor = albedo;
+    outColor = albedo * diffuse;
 }

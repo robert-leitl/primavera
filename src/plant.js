@@ -11,7 +11,7 @@ import { easing } from "./utils/easing";
 
 export class Plant {
 
-    #STEM_SEGMENTS = 16;
+    #STEM_SEGMENTS = 18;
     #LEAVES_PER_SEGMENT = 2;
     #LEAF_COUNT = this.#STEM_SEGMENTS * this.#LEAVES_PER_SEGMENT;
 

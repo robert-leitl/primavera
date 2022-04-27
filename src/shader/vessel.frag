@@ -37,10 +37,10 @@ void main() {
     float diffuse = NdL * .3 + .7;
 
     // edge darkening term
-    float edge = min(1., pow(min(1., NdL + 0.5), 3.) + 0.6);
+    float edge = min(1., pow(min(1., NdL + 0.5), 3.) + 0.7);
 
     // ambient light color
-    vec4 ambient = vec4(0.98, 0.98, 1., 1.);
+    vec4 ambient = vec4(0.9, 0.9, 1., 1.);
     
     vec4 innerColor = texture(u_colorTexture, uv);
 

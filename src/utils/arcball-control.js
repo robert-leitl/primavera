@@ -15,6 +15,8 @@ export class ArcballControl {
         this.followPos = vec3.create();
         this.prevFollowPos = vec3.create();
         this.autoRotationSpeed = 0;
+        this.velocity = 0.0025;
+        this.rotationAxis = vec3.fromValues(0, 1, 0);
 
         canvas.style.touchAction = 'none';
 
@@ -48,27 +50,31 @@ export class ArcballControl {
         this.followPos[0] += (this.pointerPos[0] - this.followPos[0]) / damping;
         this.followPos[1] += (this.pointerPos[1] - this.followPos[1]) / damping;
 
-        // get points on the arcball and corresponding normals
-        const p = this.#project(this.followPos);
-        const q = this.#project(this.prevFollowPos);
-        const np = vec3.normalize(vec3.create(), p);
-        const nq = vec3.normalize(vec3.create(), q);
+        let r;
+        if (this.pointerDown) {
+            // get points on the arcball and corresponding normals
+            const p = this.#project(this.followPos);
+            const q = this.#project(this.prevFollowPos);
+            const np = vec3.normalize(vec3.create(), p);
+            const nq = vec3.normalize(vec3.create(), q);
 
-        // get the normalized axis of rotation
-        const axis = vec3.cross(vec3.create(), p, q);
-        vec3.normalize(axis, axis);
+            // get the normalized axis of rotation
+            const axis = vec3.cross(vec3.create(), p, q);
+            vec3.normalize(axis, axis);
 
-        // get the amount of rotation
-        const d = Math.max(-1, Math.min(1, vec3.dot(np, nq)));
-        const angle = Math.acos(d) * timeScale * 5;
+            // get the amount of rotation
+            const d = Math.max(-1, Math.min(1, vec3.dot(np, nq)));
+            const angle = Math.acos(d) * timeScale * 5;
 
-        // get the new rotation quat
-        let r = quat.setAxisAngle(quat.create(), axis, angle);
+            this.velocity = angle;
+            this.rotationAxis = vec3.clone(axis);
 
-        if (!this.pointerDown) {
-            this.autoRotationSpeed += 0.00001;
-            this.autoRotationSpeed = Math.min(this.autoRotationSpeed, 0.0075);
-            r = quat.setAxisAngle(quat.create(), vec3.fromValues(0, 1, 0), this.autoRotationSpeed);
+            // get the new rotation quat
+            r = quat.setAxisAngle(quat.create(), axis, angle);
+        } else {
+            this.velocity *= this.velocity > 0.0075 ? .99 : 1;
+            //r = quat.setAxisAngle(quat.create(), vec3.fromValues(0, 1, 0), this.autoRotationSpeed);
+            r = quat.setAxisAngle(quat.create(), this.rotationAxis, this.velocity);
         }
 
         // apply the new rotation to the current rotation and normalize

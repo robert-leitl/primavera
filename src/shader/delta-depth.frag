@@ -12,7 +12,7 @@ void main() {
     float plantDepth = texture(u_depthTexture, uv).r;
     float vesselDepth = gl_FragCoord.z;
     float delta = smoothstep(0.15, 0.45, plantDepth - vesselDepth);
-    vec4 color = mix(texture(u_colorTexture, uv), vec4(1.), delta * 0.7);
+    vec4 color = mix(texture(u_colorTexture, uv), vec4(1.), delta * 0.9);
 
     outColor = vec4(color.rgb, delta);
 }

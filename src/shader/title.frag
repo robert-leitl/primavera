@@ -10,8 +10,11 @@ in vec2 v_uv;
 out vec4 outColor;
 
 void main() {
-    vec4 color = 1. - texture(u_titleTexture, v_uv * vec2(-5., 0.99));
-    color = mix(vec4(248. / 255., 248. / 255., 212. / 255., 1.), vec4(1.), color);
+    vec2 uv = vec2(v_uv.x - u_frames * 0.00025, v_uv.y);
+    vec4 color = 1. - texture(u_titleTexture, uv * vec2(-3., 0.99));
+    color = mix(vec4(248. / 255., 248. / 255., 222. / 255., 1.), vec4(1.), color);
+
+    color = mix(color, vec4(1.), sin(v_uv.x * 9.5) * 0.5 + 0.5);
 
     outColor = color;
 }

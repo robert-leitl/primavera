@@ -23,9 +23,9 @@ export class Primavera {
 
     camera = {
         matrix: mat4.create(),
-        near: 57,
-        far: 150,
-        distance: 90,
+        near: 60,
+        far: 155,
+        distance: 100,
         orbit: quat.create(),
         position: vec3.create(),
         rotation: vec3.create(),
@@ -147,7 +147,7 @@ export class Primavera {
             gl.uniform2f(this.blurLocations.u_direction, 0, 1);
         else
             gl.uniform2f(this.blurLocations.u_direction, 1, 0);
-        gl.uniform1f(this.blurLocations.u_scale, 2.5);
+        gl.uniform1f(this.blurLocations.u_scale, 2);
         gl.bindVertexArray(this.quadVAO);
         gl.drawArrays(gl.TRIANGLES, 0, this.quadBuffers.numElem);
     }
@@ -203,7 +203,7 @@ export class Primavera {
         gl.uniform1i(this.titleLocations.u_titleTexture, 0);
         gl.uniformMatrix4fv(this.titleLocations.u_viewMatrix, false, this.drawUniforms.viewMatrix);
         gl.uniformMatrix4fv(this.titleLocations.u_projectionMatrix, false, this.drawUniforms.projectionMatrix);
-        gl.uniformMatrix4fv(this.titleLocations.u_worldMatrix, false, this.drawUniforms.worldMatrix);
+        gl.uniformMatrix4fv(this.titleLocations.u_worldMatrix, false, mat4.create());
         gl.uniform1f(this.titleLocations.u_frames, this.#frames);
         gl.bindVertexArray(this.titleRibbonVAO);
         gl.drawElements(gl.TRIANGLES, this.titleRibbonBuffers.numElem, gl.UNSIGNED_SHORT, 0);
@@ -314,7 +314,7 @@ export class Primavera {
         this.plant.generate(this.#frames);
 
         // create the title ribbon
-        this.titleRibbonGeometry = this.#createTitleRibbonGeometry(55, 8, 30, 1);
+        this.titleRibbonGeometry = this.#createTitleRibbonGeometry(55, 12, 60, 1);
         this.titleRibbonBuffers = {
             position: makeBuffer(gl, new Float32Array(this.titleRibbonGeometry.vertices), gl.STATIC_DRAW),
             uv: makeBuffer(gl, new Float32Array(this.titleRibbonGeometry.uvs), gl.STATIC_DRAW),
@@ -496,9 +496,9 @@ export class Primavera {
                 minValue: 0
             });
 
-            /*const cameraFolder = this.pane.addFolder({ title: 'Camera' });
+            const cameraFolder = this.pane.addFolder({ title: 'Camera' });
             this.#createTweakpaneSlider(cameraFolder, this.camera, 'near', 'near', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
-            this.#createTweakpaneSlider(cameraFolder, this.camera, 'far', 'far', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));*/
+            this.#createTweakpaneSlider(cameraFolder, this.camera, 'far', 'far', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
 
             /*const particlesFolder = this.pane.addFolder({ title: 'Particles' });
             this.#createTweakpaneSlider(particlesFolder, this.particles.settings, 'velocity', 'velocity', 0, 10, null);

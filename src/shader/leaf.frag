@@ -27,7 +27,7 @@ void main() {
     // the albedo term from the leaf gradient with some distortion
     vec2 uv = vec2(v_uv.y, v_uv.x);
     // apply line texture
-    uv.x += sin(v_uv.x * PI * 5.) * 0.5;
+    uv.x += sin(v_uv.x * PI * 5.) * 0.1;
     vec4 albedo = texture(u_gradientTexture, uv);
     // darken the edges
     albedo *= min(1., 1. - pow(uv.y, 2.) * 0.1 + uv.x * 0.1);

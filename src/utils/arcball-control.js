@@ -68,7 +68,7 @@ export class ArcballControl {
         if (!this.pointerDown) {
             this.autoRotationSpeed += 0.00001;
             this.autoRotationSpeed = Math.min(this.autoRotationSpeed, 0.0075);
-            r = quat.setAxisAngle(quat.create(), vec3.fromValues(Math.random() * 0.5, 1, 0), this.autoRotationSpeed);
+            r = quat.setAxisAngle(quat.create(), vec3.fromValues(0, 1, 0), this.autoRotationSpeed);
         }
 
         // apply the new rotation to the current rotation and normalize

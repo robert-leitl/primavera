@@ -1,5 +1,4 @@
 import { mat3, mat4, quat, vec2, vec3 } from 'gl-matrix';
-import { OrbitControl } from './utils/orbit-control';
 import { createAndSetupTexture, createFramebuffer, createProgram, makeBuffer, makeVertexArray, resizeCanvasToDisplaySize, setFramebuffer } from './utils/webgl-utils';
 import { ArcballControl } from './utils/arcball-control';
 import { VesselGeometry } from './vessel-geometry';
@@ -11,6 +10,8 @@ import deltaDepthVertShaderSource from './shader/delta-depth.vert';
 import deltaDepthFragShaderSource from './shader/delta-depth.frag';
 import blurVertShaderSource from './shader/blur.vert';
 import blurFragShaderSource from './shader/blur.frag';
+import titleVertShaderSource from './shader/title.vert';
+import titleFragShaderSource from './shader/title.frag';
 
 export class Primavera {
     oninit;
@@ -85,10 +86,11 @@ export class Primavera {
         /** @type {WebGLRenderingContext} */
         const gl = this.gl;
 
-        // draw plant color and depth
+        // draw plant and title ribbon color and depth
         setFramebuffer(gl, this.plantFBO, this.drawBufferSize[0], this.drawBufferSize[1]);
         gl.clearColor(1, 1, 1, 0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        this.#renderTitleRibbon();
         this.plant.render(this.drawUniforms, this.plantSettings.showGuides);
         setFramebuffer(gl, null, this.drawBufferSize[0], this.drawBufferSize[1]);
 
@@ -123,7 +125,8 @@ export class Primavera {
         // final composition pass with the vessel front surface
         gl.clearColor(1, 1, 1, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        this.#drawVessel(false);
+        this.#renderTitleRibbon();
+        this.#renderVessel(false);
     }
 
     destroy() {
@@ -149,7 +152,7 @@ export class Primavera {
         gl.drawArrays(gl.TRIANGLES, 0, this.quadBuffers.numElem);
     }
 
-    #drawVessel(backSide, depthOnly = false) {
+    #renderVessel(backSide, depthOnly = false) {
         /** @type {WebGLRenderingContext} */
         const gl = this.gl;
 
@@ -187,6 +190,25 @@ export class Primavera {
         gl.cullFace(gl.BACK);
     }
 
+    #renderTitleRibbon() {
+        /** @type {WebGLRenderingContext} */
+        const gl = this.gl;
+
+        gl.useProgram(this.titleProgram);
+
+        gl.enable(gl.CULL_FACE);
+        gl.enable(gl.DEPTH_TEST);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.titleTexture);
+        gl.uniform1i(this.titleLocations.u_titleTexture, 0);
+        gl.uniformMatrix4fv(this.titleLocations.u_viewMatrix, false, this.drawUniforms.viewMatrix);
+        gl.uniformMatrix4fv(this.titleLocations.u_projectionMatrix, false, this.drawUniforms.projectionMatrix);
+        gl.uniformMatrix4fv(this.titleLocations.u_worldMatrix, false, this.drawUniforms.worldMatrix);
+        gl.uniform1f(this.titleLocations.u_frames, this.#frames);
+        gl.bindVertexArray(this.titleRibbonVAO);
+        gl.drawElements(gl.TRIANGLES, this.titleRibbonBuffers.numElem, gl.UNSIGNED_SHORT, 0);
+    }
+
     #init() {
         this.gl = this.canvas.getContext('webgl2', { antialias: false, alpha: false });
 
@@ -208,6 +230,7 @@ export class Primavera {
         this.deltaDepthProgram = createProgram(gl, [deltaDepthVertShaderSource, deltaDepthFragShaderSource], null, { a_position: 0 });
         this.blurProgram = createProgram(gl, [blurVertShaderSource, blurFragShaderSource], null, { a_position: 0 });
         this.vesselProgram = createProgram(gl, [vesselVertShaderSource, vesselFragShaderSource], null, { a_position: 0, a_normal: 1, a_uv: 2 });
+        this.titleProgram = createProgram(gl, [titleVertShaderSource, titleFragShaderSource], null, { a_position: 0, a_uv: 1 });
 
         // find the locations
         this.deltaDepthLocations = {
@@ -234,6 +257,15 @@ export class Primavera {
             u_worldInverseTransposeMatrix: gl.getUniformLocation(this.vesselProgram, 'u_worldInverseTransposeMatrix'),
             u_cameraPosition: gl.getUniformLocation(this.vesselProgram, 'u_cameraPosition'),
             u_colorTexture: gl.getUniformLocation(this.vesselProgram, 'u_colorTexture')
+        };
+        this.titleLocations = {
+            a_position: gl.getAttribLocation(this.titleProgram, 'a_position'),
+            a_uv: gl.getAttribLocation(this.titleProgram, 'a_uv'),
+            u_worldMatrix: gl.getUniformLocation(this.titleProgram, 'u_worldMatrix'),
+            u_viewMatrix: gl.getUniformLocation(this.titleProgram, 'u_viewMatrix'),
+            u_projectionMatrix: gl.getUniformLocation(this.titleProgram, 'u_projectionMatrix'),
+            u_titleTexture: gl.getUniformLocation(this.titleProgram, 'u_titleTexture'),
+            u_frames: gl.getUniformLocation(this.titleProgram, 'u_frames')
         };
         
         // setup uniforms
@@ -281,6 +313,18 @@ export class Primavera {
         );
         this.plant.generate(this.#frames);
 
+        // create the title ribbon
+        this.titleRibbonGeometry = this.#createTitleRibbonGeometry(55, 8, 30, 1);
+        this.titleRibbonBuffers = {
+            position: makeBuffer(gl, new Float32Array(this.titleRibbonGeometry.vertices), gl.STATIC_DRAW),
+            uv: makeBuffer(gl, new Float32Array(this.titleRibbonGeometry.uvs), gl.STATIC_DRAW),
+            numElem: this.titleRibbonGeometry.count
+        };
+        this.titleRibbonVAO = makeVertexArray(gl, [
+            [this.titleRibbonBuffers.position, this.titleLocations.a_position, 3],
+            [this.titleRibbonBuffers.uv, this.titleLocations.a_uv, 2]
+        ], this.titleRibbonGeometry.indices);
+
         /////////////////////////////////// FRAMEBUFFER SETUP
 
         // initial client dimensions
@@ -307,12 +351,13 @@ export class Primavera {
 
         this.resize();
 
+        this.#createTitleImageTexture();
+
         //this.#initEnvMap();
         this.camera.position[2] = this.camera.distance;
         this.#updateCameraMatrix();
         this.#updateProjectionMatrix(gl);
 
-        //this.#initOrbitControls();
         this.#initTweakpane();
 
         if (this.oninit) this.oninit(this);
@@ -333,24 +378,22 @@ export class Primavera {
         return texture;
     }
 
-    #initEnvMap() {
+    #createTitleImageTexture() {
         /** @type {WebGLRenderingContext} */
         const gl = this.gl;
 
-        /*this.envMapTexture = createAndSetupTexture(gl, gl.LINEAR, gl.LINEAR, gl.MIRRORED_REPEAT, gl.MIRRORED_REPEAT);
-        gl.bindTexture(gl.TEXTURE_2D, this.envMapTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 100, 500, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        this.titleTexture = createAndSetupTexture(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
+        this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
+        this.gl.pixelStorei(this.gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
 
         const img = new Image();
-        img.src = new URL('./assets/studio024.jpg', import.meta.url);
+        img.width = 2000;
         img.addEventListener('load', () => {
-            gl.bindTexture(gl.TEXTURE_2D, this.envMapTexture);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 100, 500, 0, gl.RGBA, gl.UNSIGNED_BYTE, img);
-        });*/
-    }
-
-    #initOrbitControls() {
-        this.control = new OrbitControl(this.canvas, this.camera, () => this.#updateCameraMatrix());
+            gl.bindTexture(gl.TEXTURE_2D, this.titleTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        });
+        img.src = new URL('./assets/title.svg', import.meta.url);
     }
 
     #resizeTextures(gl) {
@@ -378,6 +421,56 @@ export class Primavera {
             gl.texImage2D(gl.TEXTURE_2D, 0, format, size[0], size[1], 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
 
         gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+    #createTitleRibbonGeometry(r, h, rSegments, hSegments) {
+        const dAlpha = (2 * Math.PI) / rSegments;
+        const dy = h / hSegments;
+        const count = rSegments * hSegments * 6;
+        const vertices = [];
+        const normals = [];
+        const uvs = [];
+        const indices = [];
+        const wOff = rSegments + 1;
+        const sy = -h / 2;
+
+        for(let iy = 0; iy <= hSegments; ++iy) {
+            for(let ix = 0; ix <= rSegments; ++ix) {
+                let p = {
+                    x: r * Math.sin(dAlpha * ix),
+                    y: sy + dy * iy,
+                    z: r * Math.cos(dAlpha * ix)
+                };
+                let n = {x: 0, y: 0, z: 1};
+
+                vertices.push(p.x, p.y, p.z);
+                normals.push(n.x, n.y, n.z);
+                uvs.push(ix / rSegments, iy / hSegments);
+            }
+        }
+
+        for(let iy = 0; iy < hSegments; ++iy) {
+            for(let ix = 0; ix < rSegments; ++ix) {
+                indices.push(
+                    iy * wOff + ix,
+                    (iy + 1) * wOff + ix + 1,
+                    iy * wOff + ix + 1
+                );
+                indices.push(
+                    (iy + 1) * wOff + ix + 1,
+                    iy * wOff + ix,
+                    (iy + 1) * wOff + ix
+                );
+            }
+        }
+
+        return {
+            vertices,
+            normals,
+            uvs,
+            indices,
+            count
+        };
     }
 
     #updateCameraMatrix() {

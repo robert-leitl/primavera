@@ -14,6 +14,7 @@ export class ArcballControl {
         this.pointerPos = vec2.create();
         this.followPos = vec3.create();
         this.prevFollowPos = vec3.create();
+        this.autoRotationSpeed = 0;
 
         canvas.style.touchAction = 'none';
 
@@ -23,6 +24,7 @@ export class ArcballControl {
             this.pointerPos = vec2.fromValues(e.clientX, e.clientY);
             this.prevFollowPos = vec3.fromValues(e.clientX, e.clientY, 0);
             this.pointerDown = true;
+            this.autoRotationSpeed = 0;
         });
         canvas.addEventListener('pointerup', e => {
             this.pointerDown = false;
@@ -61,7 +63,13 @@ export class ArcballControl {
         const angle = Math.acos(d) * timeScale * 5;
 
         // get the new rotation quat
-        const r = quat.setAxisAngle(quat.create(), axis, angle);
+        let r = quat.setAxisAngle(quat.create(), axis, angle);
+
+        if (!this.pointerDown) {
+            this.autoRotationSpeed += 0.00001;
+            this.autoRotationSpeed = Math.min(this.autoRotationSpeed, 0.0075);
+            r = quat.setAxisAngle(quat.create(), vec3.fromValues(Math.random() * 0.5, 1, 0), this.autoRotationSpeed);
+        }
 
         // apply the new rotation to the current rotation and normalize
         quat.multiply(this.rotationQuat, r, this.rotationQuat);

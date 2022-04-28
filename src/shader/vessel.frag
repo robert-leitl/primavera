@@ -37,7 +37,7 @@ void main() {
     float diffuse = NdL * .3 + .7;
 
     // edge darkening term
-    float edge = min(1., pow(min(1., NdL + 0.5), 3.) + 0.7);
+    float edge = min(1., pow(min(1., NdL + 0.5), 3.) + 0.6);
 
     // ambient light color
     vec4 ambient = vec4(0.9, 0.9, 1., 1.);
@@ -47,5 +47,5 @@ void main() {
     vec4 vesselColor = ambient * diffuse + vec4(specular) * 1.5;
     vesselColor *= edge;
 
-    outColor = innerColor * 0.9 + vesselColor * 0.1 + vec4(N, 1.) * 0.01;
+    outColor = innerColor * 0.9 + vesselColor * 0.1 + vec4(N.zyx, 1.) * 0.03;
 }

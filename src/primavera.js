@@ -403,9 +403,9 @@ export class Primavera {
                 minValue: 0
             });
 
-            const cameraFolder = this.pane.addFolder({ title: 'Camera' });
+            /*const cameraFolder = this.pane.addFolder({ title: 'Camera' });
             this.#createTweakpaneSlider(cameraFolder, this.camera, 'near', 'near', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
-            this.#createTweakpaneSlider(cameraFolder, this.camera, 'far', 'far', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
+            this.#createTweakpaneSlider(cameraFolder, this.camera, 'far', 'far', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));*/
 
             /*const particlesFolder = this.pane.addFolder({ title: 'Particles' });
             this.#createTweakpaneSlider(particlesFolder, this.particles.settings, 'velocity', 'velocity', 0, 10, null);
@@ -416,10 +416,10 @@ export class Primavera {
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'strength', 'strength', 0, 1, null);
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'dispersion', 'dispersion', 0, 10, null);*/
 
-            const plantFolder = this.pane.addFolder({ title: 'Plant' });
+            /*const plantFolder = this.pane.addFolder({ title: 'Plant' });
             plantFolder.addInput(this.plantSettings, 'showGuides', { label: 'guides' });
             const plantGenerateBtn = plantFolder.addButton({ title: 'generate' });
-            plantGenerateBtn.on('click', () => this.plant.generate(this.#frames));
+            plantGenerateBtn.on('click', () => this.plant.generate(this.#frames));*/
         }
     }
 

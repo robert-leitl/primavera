@@ -66,7 +66,7 @@ export class CubicBezier {
 
     map(u) {
         const targetLength = u * this.#arcLength;
-        const high = this.#ARC_LENGTH_STEPS;
+        let high = this.#ARC_LENGTH_STEPS;
         let low = 0;
         let index = 0;
 

@@ -58,7 +58,7 @@ export class Primavera {
     }
 
     run(time = 0) {
-        this.fpsGraph.begin();
+        if(this.fpsGraph) this.fpsGraph.begin();
 
         this.#deltaTime = Math.min(32, time - this.#time);
         this.#time = time;
@@ -77,7 +77,7 @@ export class Primavera {
 
         this.#render();
 
-        this.fpsGraph.end();
+        if(this.fpsGraph) this.fpsGraph.end();
 
         requestAnimationFrame((t) => this.run(t));
     }

@@ -2,6 +2,7 @@
 
 precision highp float;
 
+uniform mat4 u_inversProjectionMatrix;
 uniform float u_frames;
 uniform sampler2D u_gradientTexture;
 

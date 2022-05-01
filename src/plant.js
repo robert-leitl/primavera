@@ -46,6 +46,7 @@ export class Plant {
             u_worldMatrix: gl.getUniformLocation(this.leafProgram, 'u_worldMatrix'),
             u_viewMatrix: gl.getUniformLocation(this.leafProgram, 'u_viewMatrix'),
             u_projectionMatrix: gl.getUniformLocation(this.leafProgram, 'u_projectionMatrix'),
+            u_inversProjectionMatrix: gl.getUniformLocation(this.leafProgram, 'u_inversProjectionMatrix'),
             u_worldInverseTransposeMatrix: gl.getUniformLocation(this.leafProgram, 'u_worldInverseTransposeMatrix'),
             u_cameraPosition: gl.getUniformLocation(this.leafProgram, 'u_cameraPosition'),
             u_gradientTexture: gl.getUniformLocation(this.leafProgram, 'u_gradientTexture')
@@ -328,6 +329,7 @@ export class Plant {
         gl.bindVertexArray(this.leafVAO);
         gl.uniformMatrix4fv(this.leafLocations.u_viewMatrix, false, uniforms.viewMatrix);
         gl.uniformMatrix4fv(this.leafLocations.u_projectionMatrix, false, uniforms.projectionMatrix);
+        gl.uniformMatrix4fv(this.leafLocations.u_inversProjectionMatrix, false, uniforms.inversProjectionMatrix);
         gl.uniform3f(this.leafLocations.u_cameraPosition, uniforms.cameraMatrix[12], uniforms.cameraMatrix[14], uniforms.cameraMatrix[14]);
         gl.uniformMatrix4fv(this.leafLocations.u_worldMatrix, false, modelMatrix);
         gl.uniformMatrix4fv(this.leafLocations.u_worldInverseTransposeMatrix, false, uniforms.worldInverseTransposeMatrix);

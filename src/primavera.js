@@ -32,6 +32,8 @@ export class Primavera {
         up: vec3.fromValues(0, 1, 0)
     };
 
+    animate = true;
+
     plantSettings = {
         showGuides: false
     }
@@ -62,7 +64,9 @@ export class Primavera {
 
         this.#deltaTime = Math.min(32, time - this.#time);
         this.#time = time;
-        this.#frames += this.#deltaTime / 16;
+
+        if (this.animate)
+            this.#frames += this.#deltaTime / 16;
 
         if (this.#isDestroyed) return;
 
@@ -72,6 +76,9 @@ export class Primavera {
         // update the world inverse transpose
         mat4.invert(this.drawUniforms.worldInverseTransposeMatrix, this.drawUniforms.worldMatrix);
         mat4.transpose(this.drawUniforms.worldInverseTransposeMatrix, this.drawUniforms.worldInverseTransposeMatrix);
+
+        // update the invers projection matrix
+        mat4.invert(this.drawUniforms.inversProjectionMatrix, this.drawUniforms.projectionMatrix);
 
         this.plant.update(this.#frames);
 
@@ -107,6 +114,7 @@ export class Primavera {
         gl.uniform1i(this.deltaDepthLocations.u_depthTexture, 1);
         gl.uniformMatrix4fv(this.deltaDepthLocations.u_viewMatrix, false, this.drawUniforms.viewMatrix);
         gl.uniformMatrix4fv(this.deltaDepthLocations.u_projectionMatrix, false, this.drawUniforms.projectionMatrix);
+        gl.uniformMatrix4fv(this.deltaDepthLocations.u_inversProjectionMatrix, false, this.drawUniforms.inversProjectionMatrix);
         gl.uniformMatrix4fv(this.deltaDepthLocations.u_worldMatrix, false, this.drawUniforms.worldMatrix);
         gl.bindVertexArray(this.vesselVAO);
         gl.drawElements(gl.TRIANGLES, this.vesselBuffers.numElem, gl.UNSIGNED_SHORT, 0);
@@ -147,7 +155,9 @@ export class Primavera {
             gl.uniform2f(this.blurLocations.u_direction, 0, 1);
         else
             gl.uniform2f(this.blurLocations.u_direction, 1, 0);
-        gl.uniform1f(this.blurLocations.u_scale, 2);
+
+        const blurScale = Math.max(gl.canvas.clientWidth, gl.canvas.clientHeight) / 550;
+        gl.uniform1f(this.blurLocations.u_scale, blurScale);
         gl.bindVertexArray(this.quadVAO);
         gl.drawArrays(gl.TRIANGLES, 0, this.quadBuffers.numElem);
     }
@@ -238,6 +248,7 @@ export class Primavera {
             u_worldMatrix: gl.getUniformLocation(this.deltaDepthProgram, 'u_worldMatrix'),
             u_viewMatrix: gl.getUniformLocation(this.deltaDepthProgram, 'u_viewMatrix'),
             u_projectionMatrix: gl.getUniformLocation(this.deltaDepthProgram, 'u_projectionMatrix'),
+            u_inversProjectionMatrix: gl.getUniformLocation(this.deltaDepthProgram, 'u_inversProjectionMatrix'),
             u_colorTexture: gl.getUniformLocation(this.deltaDepthProgram, 'u_colorTexture'),
             u_depthTexture: gl.getUniformLocation(this.deltaDepthProgram, 'u_depthTexture')
         };
@@ -274,6 +285,7 @@ export class Primavera {
             viewMatrix: mat4.create(),
             cameraMatrix: mat4.create(),
             projectionMatrix: mat4.create(),
+            inversProjectionMatrix: mat4.create(),
             worldInverseTransposeMatrix: mat4.create()
         };
 
@@ -314,7 +326,7 @@ export class Primavera {
         this.plant.generate(this.#frames);
 
         // create the title ribbon
-        this.titleRibbonGeometry = this.#createTitleRibbonGeometry(55, 12, 60, 1);
+        this.titleRibbonGeometry = this.#createTitleRibbonGeometry(50, 8, 60, 1);
         this.titleRibbonBuffers = {
             position: makeBuffer(gl, new Float32Array(this.titleRibbonGeometry.vertices), gl.STATIC_DRAW),
             uv: makeBuffer(gl, new Float32Array(this.titleRibbonGeometry.uvs), gl.STATIC_DRAW),
@@ -496,6 +508,8 @@ export class Primavera {
                 minValue: 0
             });
 
+            this.pane.addInput(this, 'animate', { label: 'animate' });
+
             const cameraFolder = this.pane.addFolder({ title: 'Camera' });
             this.#createTweakpaneSlider(cameraFolder, this.camera, 'near', 'near', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
             this.#createTweakpaneSlider(cameraFolder, this.camera, 'far', 'far', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
@@ -509,9 +523,8 @@ export class Primavera {
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'strength', 'strength', 0, 1, null);
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'dispersion', 'dispersion', 0, 10, null);*/
 
-            /*const plantFolder = this.pane.addFolder({ title: 'Plant' });
-            plantFolder.addInput(this.plantSettings, 'showGuides', { label: 'guides' });
-            const plantGenerateBtn = plantFolder.addButton({ title: 'generate' });
+            const plantFolder = this.pane.addFolder({ title: 'Plant' });
+            /*const plantGenerateBtn = plantFolder.addButton({ title: 'generate' });
             plantGenerateBtn.on('click', () => this.plant.generate(this.#frames));*/
         }
     }

@@ -14,6 +14,7 @@ void main() {
     vec4 color = 1. - texture(u_titleTexture, uv * vec2(-4., 0.99));
     //color = mix(vec4(248. / 255., 248. / 255., 222. / 255., 1.), vec4(1.), color);
     color = mix(vec4(228. / 255., 238. / 255., 255. / 255., 1.), vec4(1.), color);
+    //color = mix(vec4(55. / 255., 25. / 255., 22. / 255., 1.), vec4(1.), color);
 
     color = mix(color, vec4(1.), sin(v_uv.x * 9.5) * 0.5 + 0.5);
 

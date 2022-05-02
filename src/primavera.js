@@ -12,6 +12,7 @@ import blurVertShaderSource from './shader/blur.vert';
 import blurFragShaderSource from './shader/blur.frag';
 import titleVertShaderSource from './shader/title.vert';
 import titleFragShaderSource from './shader/title.frag';
+import { SoundFX } from './sound-fx';
 
 export class Primavera {
     oninit;
@@ -55,6 +56,8 @@ export class Primavera {
             gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
             this.#resizeTextures(gl);
         }
+
+        this.blurScale = gl.canvas.clientHeight / 550;
         
         this.#updateProjectionMatrix(gl);
     }
@@ -97,7 +100,7 @@ export class Primavera {
         setFramebuffer(gl, this.plantFBO, this.drawBufferSize[0], this.drawBufferSize[1]);
         gl.clearColor(1, 1, 1, 0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        this.#renderTitleRibbon();
+        //this.#renderTitleRibbon();
         this.plant.render(this.drawUniforms, this.plantSettings.showGuides);
         setFramebuffer(gl, null, this.drawBufferSize[0], this.drawBufferSize[1]);
 
@@ -156,8 +159,7 @@ export class Primavera {
         else
             gl.uniform2f(this.blurLocations.u_direction, 1, 0);
 
-        const blurScale = Math.max(gl.canvas.clientWidth, gl.canvas.clientHeight) / 550;
-        gl.uniform1f(this.blurLocations.u_scale, blurScale);
+        gl.uniform1f(this.blurLocations.u_scale, this.blurScale);
         gl.bindVertexArray(this.quadVAO);
         gl.drawArrays(gl.TRIANGLES, 0, this.quadBuffers.numElem);
     }
@@ -372,6 +374,10 @@ export class Primavera {
 
         this.#initTweakpane();
 
+        this.soundFx = new SoundFX(this.pane);
+        this.plant.onLeafGrow = (leafIndex) => this.soundFx.onLeafGrow(leafIndex);
+        this.plant.onPlantGrow = () => this.soundFx.onPlantGrow();
+
         if (this.oninit) this.oninit(this);
     }
 
@@ -523,7 +529,7 @@ export class Primavera {
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'strength', 'strength', 0, 1, null);
             this.#createTweakpaneSlider(refractionFolder, this.refractionSettings, 'dispersion', 'dispersion', 0, 10, null);*/
 
-            const plantFolder = this.pane.addFolder({ title: 'Plant' });
+            //const plantFolder = this.pane.addFolder({ title: 'Plant' });
             /*const plantGenerateBtn = plantFolder.addButton({ title: 'generate' });
             plantGenerateBtn.on('click', () => this.plant.generate(this.#frames));*/
         }

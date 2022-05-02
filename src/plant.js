@@ -17,6 +17,10 @@ export class Plant {
 
     leafInstances;
 
+    onLeafGrow;
+    onLeafWither;
+    onPlantGrow;
+
     constructor(
         context,
         vesselHeight,
@@ -87,6 +91,8 @@ export class Plant {
     generate(frames) {
         this.#generateStem();
         this.#generateLeaves(frames);
+
+        if (this.onPlantGrow) this.onPlantGrow();
     }
 
     update(frames) {
@@ -264,6 +270,7 @@ export class Plant {
 
         // reset the growth animation
         this.startFrame = frames;
+        this.leafAnimationStartNdx = -1;
     }
 
     #updateLeaves(frames) {
@@ -281,6 +288,12 @@ export class Plant {
             const off = i * this.leafStaggerDelay;
             // the t value (0...1) fro the whole animation of this leaf
             let t = Math.min(leafDuration, Math.max(0, progress - off) ) / leafDuration;
+
+            // notify that a new leaf growth animation has started
+            if (this.onLeafGrow && t > 0 && i > this.leafAnimationStartNdx) {
+                this.leafAnimationStartNdx = i;
+                this.onLeafGrow(i);
+            }
 
             // the scale t value (0...1): goes from 0 to 1 and then back from 1 to 0
             let scale = t;

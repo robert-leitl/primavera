@@ -47,5 +47,5 @@ void main() {
     vec4 vesselColor = ambient * diffuse + vec4(specular) * 1.5;
     vesselColor *= edge;
 
-    outColor = innerColor * 0.9 + vesselColor * 0.1 + vec4(N.zyx, 1.) * 0.02;
+    outColor = innerColor * 0.9 + vesselColor * 0.1 + vec4(N.zyx, 1.) * 0.05;
 }

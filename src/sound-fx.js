@@ -15,13 +15,19 @@ export class SoundFX {
 			volume: -15
 		}).toDestination();
 
-        const bellPart = new Tone.Sequence(((time, freq) => {
+        /*const bellPart = new Tone.Sequence(((time, freq) => {
 			this.bell.triggerAttack(freq, time, Math.random()*0.5 + 0.5);
 		}), [[300, null, 200], 
 			[null, 200, 200], 
 			[null, 200, null], 
 			[200, null, 200]
-		], "4n").start(0);
+		], "4n").start(0);*/
+
+        this.baseSoundsOscFreq = ['B3', 'E3', 'A3', 'D3', 'F#3'];
+        this.baseSoundOsc = new Tone.FatOscillator('B3', 'square', 10);
+        this.baseSoundOscDst = this.baseSoundOsc.toDestination();
+        this.baseSoundOscDst.volume.value = -25;
+        this.baseSoundOscDst.start();
 
         Tone.Transport.bpm.value = 115;
         Tone.Transport.stop();
@@ -30,7 +36,12 @@ export class SoundFX {
     }
 
     onLeafGrow(ndx) {
-        this.bell.triggerAttackRelease(2 + ndx * 5, '8n');
+        if (Tone.context.state !== 'running') 
+            Tone.context.resume();
+
+        if (ndx % 5 != 0) return;
+
+        //this.bell.triggerAttackRelease(2 + ndx * 5, '8n');
     }
 
     onLeafWither() {
@@ -38,8 +49,9 @@ export class SoundFX {
     }
 
     onPlantGrow() {
-        this.bell.triggerAttackRelease(70, '2m');
-
+        //this.bell.triggerAttackRelease(70, '2m');
+        const ndx = Math.floor(Math.random() * this.baseSoundsOscFreq.length);
+        this.baseSoundOsc.frequency.rampTo(this.baseSoundsOscFreq[ndx], 0.2);
     }
 
     #initTweakpane() {

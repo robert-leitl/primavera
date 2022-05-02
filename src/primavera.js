@@ -374,9 +374,9 @@ export class Primavera {
 
         this.#initTweakpane();
 
-        this.soundFx = new SoundFX(this.pane);
+        /*this.soundFx = new SoundFX(this.pane);
         this.plant.onLeafGrow = (leafIndex) => this.soundFx.onLeafGrow(leafIndex);
-        this.plant.onPlantGrow = () => this.soundFx.onPlantGrow();
+        this.plant.onPlantGrow = () => this.soundFx.onPlantGrow();*/
 
         if (this.oninit) this.oninit(this);
     }

@@ -12,7 +12,6 @@ import blurVertShaderSource from './shader/blur.vert';
 import blurFragShaderSource from './shader/blur.frag';
 import titleVertShaderSource from './shader/title.vert';
 import titleFragShaderSource from './shader/title.frag';
-import { SoundFX } from './sound-fx';
 
 export class Primavera {
     oninit;

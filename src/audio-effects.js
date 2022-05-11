@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
 
-export class SoundFX {
+export class AudioEffects {
     
     constructor(pane) {
         this.pane = pane;

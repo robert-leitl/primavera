@@ -5,9 +5,9 @@
   "browserslist": "> 0.5%, last 2 versions, not dead",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "parcel build src/index.html --public-url=/primavera/dist/",
-    "serve": "live-server --port=1234 ./dist/",
-    "watch": "parcel watch ./src/index.html --no-hmr",
+    "build": "parcel build src/index.html --public-url=/primavera/dist/ --detailed-report",
+    "serve": "live-server --port=1234 ./live/",
+    "watch": "parcel watch ./src/index.html --no-hmr --dist-dir ./live/",
     "start": "npm-run-all --parallel watch serve"
   },
   "author": "Robert Leitl",
@@ -22,7 +22,6 @@
   "dependencies": {
     "@tweakpane/plugin-essentials": "^0.1.4",
     "gl-matrix": "^3.4.3",
-    "glsl-curl-noise": "^0.0.4",
     "tone": "^14.7.77",
     "tweakpane": "^3.0.6"
   }

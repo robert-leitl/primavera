@@ -12,6 +12,7 @@ import blurVertShaderSource from './shader/blur.vert';
 import blurFragShaderSource from './shader/blur.frag';
 import titleVertShaderSource from './shader/title.vert';
 import titleFragShaderSource from './shader/title.frag';
+import { AudioEffects } from './audio-effects';
 
 export class Primavera {
     oninit;
@@ -135,7 +136,7 @@ export class Primavera {
         // final composition pass with the vessel front surface
         gl.clearColor(1, 1, 1, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        this.#renderTitleRibbon();
+        //this.#renderTitleRibbon();
         this.#renderVessel(false);
     }
 
@@ -371,11 +372,11 @@ export class Primavera {
         this.#updateCameraMatrix();
         this.#updateProjectionMatrix(gl);
 
-        this.#initTweakpane();
+        this.initTweakpane();
 
-        /*this.soundFx = new SoundFX(this.pane);
-        this.plant.onLeafGrow = (leafIndex) => this.soundFx.onLeafGrow(leafIndex);
-        this.plant.onPlantGrow = () => this.soundFx.onPlantGrow();*/
+        this.audioEffects = new AudioEffects(this.pane);
+        //this.plant.onLeafGrow = (leafIndex) => this.audioEffects.onLeafGrow(leafIndex);
+        //this.plant.onPlantGrow = () => this.audioEffects.onPlantGrow();
 
         if (this.oninit) this.oninit(this);
     }
@@ -501,7 +502,7 @@ export class Primavera {
         mat4.perspective(this.drawUniforms.projectionMatrix, Math.PI / 4, aspect, this.camera.near, this.camera.far);
     }
 
-    #initTweakpane() {
+    initTweakpane() {
         if (this.pane) {
             const maxFar = 200;
 

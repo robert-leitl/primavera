@@ -28,7 +28,7 @@ void blur(
     float rA = getRadius(depthA);
 
     // scatter as you gather loop
-    for(int i = -KERNEL_SIZE; i < KERNEL_SIZE; ++i) {
+    for(int i = -KERNEL_SIZE + 1; i < KERNEL_SIZE; ++i) {
         vec2 B = A + direction * ((float(i) * scale) * texelSize);
         vec4 colorB = tex(inTexture, B);
         float depthB = colorB.a;

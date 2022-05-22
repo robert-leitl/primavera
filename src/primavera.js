@@ -57,7 +57,7 @@ export class Primavera {
             this.#resizeTextures(gl);
         }
 
-        this.blurScale = gl.canvas.clientHeight / 550;
+        this.blurScale = gl.canvas.clientHeight / 500;
         
         this.#updateProjectionMatrix(gl);
     }
@@ -375,7 +375,7 @@ export class Primavera {
         this.initTweakpane();
 
         this.audioEffects = new AudioEffects(this.pane);
-        //this.plant.onLeafGrow = (leafIndex) => this.audioEffects.onLeafGrow(leafIndex);
+        this.plant.onLeafGrow = (leafIndex) => this.audioEffects.onLeafGrow(leafIndex);
         //this.plant.onPlantGrow = () => this.audioEffects.onPlantGrow();
 
         if (this.oninit) this.oninit(this);

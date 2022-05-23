@@ -19,17 +19,26 @@ canvas {
 }
 
 #start-button {
+    z-index: 2;
+    width: 12rem;
+    height: 20rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: -0.05em;
+    color: #222;
+    background-color: #fff;
+    background-image: url(assets/start-button.svg);
+    background-position: top;
+    background-repeat: no-repeat;
+    border: none;
+    justify-content: center;
+    align-items: self-end;
+    font-family: Bodoni MT, Didot, Didot LT STD, Hoefler Text, Garamond, Times New Roman, serif;
+    font-size: 2.2em;
+    line-height: .9em;
+    display: flex;
     position: absolute;
     top: 50%;
     left: 50%;
-    z-index: 2;
     transform: translate(-50%, -50%);
-    background-image: url(assets/start-button.svg);
-    background-color: white;
-    background-position: center;
-    background-repeat: no-repeat;
-    width: 8rem;
-    height: 10rem;
-    cursor: pointer;
-    border: none;
 }

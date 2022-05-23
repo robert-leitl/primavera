@@ -29,74 +29,171 @@ export class AudioEffects {
     constructor(pane) {
         this.pane = pane;
 
-        this.bell = new Tone.MetalSynth({
-			harmonicity: 12,
-			resonance: 800,
-			modulationIndex: 20,
-			envelope: {
-				decay: 0.4,
-			},
-			volume: -15
-		}).toDestination();
+        const rootNote = this.MELODY_KEY_NOTE;
 
-        /*const bellPart = new Tone.Sequence(((time, freq) => {
-			this.bell.triggerAttack(freq, time, Math.random()*0.5 + 0.5);
-		}), [[300, null, 200], 
-			[null, 200, 200], 
-			[null, 200, null], 
-			[200, null, 200]
-		], "4n").start(0);*/
+        this.melodyInstrument = new Tone.PluckSynth({
+            volume: -1,
+            resonance: .95
+        });
+        const melodyLowPassFilter = new Tone.Filter(600, 'lowpass');
+        const tremolo = new Tone.Tremolo(1000, .45);
+        const feedbackDelay = new Tone.FeedbackDelay('8n', 0.1);
+        const reverb = new Tone.Reverb(8);
+        const autoPanner = new Tone.AutoPanner("1n");
 
-        this.baseSoundsOscFreq = ['B3', 'E3', 'A3', 'D3', 'F#3'];
-        this.baseSoundOsc = new Tone.FatOscillator('B3', 'square', 10);
-        this.baseSoundOscDst = this.baseSoundOsc.toDestination();
-        this.baseSoundOscDst.volume.value = -25;
-        //this.baseSoundOscDst.start();
+        this.melodyInstrument.chain(reverb, autoPanner);
+        tremolo.toDestination();
+        feedbackDelay.connect(melodyLowPassFilter);
+        autoPanner.toDestination();
+        const chordNotes = [
+            ...this.min7ChordIntervals.map(i => this.MIDI_NUM_NAMES[i + rootNote + 24]),
+            ...this.maj7ChordIntervals.map(i => this.MIDI_NUM_NAMES[i + rootNote + 24 - 2]),
+            ...this.minChordIntervals.map(i => this.MIDI_NUM_NAMES[i + rootNote + 24 - 5]),
+            ...this.majChordIntervals.map(i => this.MIDI_NUM_NAMES[i + rootNote + 36 - 7])
+        ];
+        this.melodyPattern = new Tone.Pattern((time, note) => {
+            this.melodyInstrument.triggerAttackRelease(note, '1n', time);
+        }, chordNotes, 'randomOnce').start('1:0:0');
+        this.melodyPattern.loop = true;
 
-        // double the melody scale notes
-        const scale = this.MAJOR_SCALE;
-        this.melodyInstrument = [...scale];
-        for(let i=1; i<scale.length; ++i) {
-            this.melodyNoteIntervals.push(scale[i] + 12);
-            this.melodyNoteIntervals.push(scale[i] + 24);
-        }
-        this.melodyInstrument = new Tone.FMSynth().toDestination();
+
+
+
+
 
         this.harmonyInstrument = new Tone.PolySynth(
             Tone.MonoSynth, {
-                volume: -8,
+                volume: -22,
                 oscillator: {
-                    type: "square8"
+                    type: 'sawtooth'
                 },
                 envelope: {
-                    attack: .05,
-                    decay: 0.3,
-                    sustain: 0.4,
-                    release: 0.8,
+                    attack: '0:4:0',
+                    attackCurve: 'exponential',
+                    decay: '0:0:0',
+                    sustain: 0.8,
+                    release: 3
                 },
-                /*filterEnvelope: {
-                    attack: .001,
+                filterEnvelope: {
+                    attack: .0001,
                     decay: 0.7,
                     sustain: 0.1,
-                    release: 0.8,
+                    release: 0.9,
                     baseFrequency: 300,
                     octaves: 4
-                }*/
+                }
             }
         ).toDestination();
-        const rootNote = this.MELODY_KEY_NOTE;
         const chordProgression = [
             ...this.min7ChordIntervals.map(i => [0, this.MIDI_NUM_NAMES[i + rootNote]]),
             ...this.maj7ChordIntervals.map(i => ['1:0:0', this.MIDI_NUM_NAMES[i + rootNote - 2]]),
             ...this.minChordIntervals.map(i => ['2:0:0', this.MIDI_NUM_NAMES[i + rootNote - 5]]),
             ...this.majChordIntervals.map(i => ['3:0:0', this.MIDI_NUM_NAMES[i + rootNote - 7]])
         ];
-
         this.harmonyPart = new Tone.Part((time, chord) => {
-            this.harmonyInstrument.triggerAttackRelease(chord, "1n", time);
-        }, chordProgression ).start(0);
+            this.harmonyInstrument.triggerAttackRelease(chord, '0:3:3', time);
+        }, chordProgression ).start('2:0:0');
         this.harmonyPart.loop = true;
         this.harmonyPart.loopEnd = '4:0:0';
+
+
+
+
+
+
+
+        const filter = new Tone.Filter(100, 'lowpass');
+        const freeverb = new Tone.Freeverb({
+            wet: 0.2,
+            roomSize: 0.95,
+            dampening: 100
+        });
+        const kickInstrument = new Tone.MembraneSynth({
+            volume: -1,
+            envelope: {
+                attack: 0.005,
+                decay: 0.8,
+                sustain: 0.1
+            },
+            octaves: 5
+        });
+
+        kickInstrument.connect(filter);
+        filter.connect(freeverb);
+        freeverb.toDestination();
+
+        this.kickPart = new Tone.Part((time, notes) => {
+            kickInstrument.triggerAttackRelease(notes, '8n', time);
+        }, [[0, 'D3']] ).start(0);
+        this.kickPart.loop = true;
+        this.kickPart.loopEnd = '0:2:0';
+
+
+
+
+
+
+
+        var lowPass = new Tone.Filter({
+            frequency: 1000,
+        }).toDestination();
+    
+        var hiHatInstrument = new Tone.NoiseSynth({
+            volume : -14,
+            filter: {
+                Q: 1
+            },
+            envelope: {
+                attack: 0.01,
+                decay: 0.15
+            },
+            filterEnvelope: {
+                attack: 0.01,
+                decay: 0.03,
+                baseFrequency: 4000,
+                octaves: -2.5,
+                exponent: 4,
+    
+            }
+        }).connect(lowPass);
+
+        this.hiHatPart = new Tone.Part((time, notes) => {
+            hiHatInstrument.triggerAttack(time);
+        }, [
+            '0:0:0',
+            '0:1:0',
+            '0:1:3',
+            '0:1:2',
+            '0:2:1',
+            '0:3:0'
+        ] ).start('4:0:0');
+        this.hiHatPart.loop = true;
+        this.hiHatPart.loopEnd = '1:0:0';
+
+        var trapLowPass = new Tone.Filter({
+            frequency: 200,
+            type: 'lowpass'
+        }).toDestination();
+        var trapInstrument = new Tone.NoiseSynth({
+            volume : -24,
+            noise: {
+                type: 'pink'
+            }
+        }).connect(trapLowPass).toDestination();
+        this.trapPart = new Tone.Part((time, notes) => {
+            trapInstrument.triggerAttack(time);
+        }, [
+            '0:0:0',
+            '0:0:1',
+            '0:0:2',
+            '0:0:3',
+            '0:0:4',
+            '0:2:0',
+            '0:3:2',
+        ] ).start('10:0:0');
+        this.trapPart.loop = true;
+        this.trapPart.loopEnd = '4:0:0';
+        this.trapPart.playbackRate = 4;
 
 
         Tone.Transport.bpm.value = 60;
@@ -106,47 +203,21 @@ export class AudioEffects {
     }
 
     onLeafGrow(ndx) {
-        if (Tone.context.state !== 'running') {
-            Tone.context.resume();
-            return;
-        }
-
-        if (ndx % 3 != 0) return;
-
-        //this.bell.triggerAttackRelease(2 + ndx * 5, '8n');
-        this.#playRandomMelodyNote();
     }
 
     onLeafWither() {
-        //this.bell.triggerAttackRelease(100, '8n');
     }
 
-    onPlantGrow() {
-        //this.bell.triggerAttackRelease(70, '2m');
-        const ndx = Math.floor(Math.random() * this.baseSoundsOscFreq.length);
-        this.baseSoundOsc.frequency.rampTo(this.baseSoundsOscFreq[ndx], 0.2);
-    }
-
-    #playRandomMelodyNote() {
-        if (this.randomNotesBuffer.length === 0) {
-            // fill with random notes
-            for (let i = 0; i < this.melodyNoteIntervals.length; i++) {
-                this.randomNotesBuffer.push(i);
-            }
-        }
-
-        // random choose an index, and then remove it so it's not chosen again
-        const ndx = this.randomNotesBuffer.splice(Math.floor(this.randomNotesBuffer.length * Math.random()), 1)[0];
-        const note = this.MELODY_KEY_NOTE - 24 + this.melodyNoteIntervals[ndx];
-
-
-        /*const step = Math.random() < .5 ? -1 : 1;
-        this.randomWalkIndex += step;
-        this.randomWalkIndex = Math.max(0, Math.min(this.randomWalkIndex, this.melodyNoteIntervals.length - 1));
-        const note = this.MELODY_KEY_NOTE + this.melodyNoteIntervals[this.randomWalkIndex];*/
-
+    onPlantGrowStart() {
+        this.melodyPattern.playbackRate = 2;
+    } 
     
-       // this.melodyInstrument.triggerAttackRelease(this.MIDI_NUM_NAMES[note], '8n');
+    onPlantGrowEnd() {
+        this.melodyPattern.playbackRate = .5;
+    }
+
+    start() {
+        Tone.Transport.start();
     }
 
     #initTweakpane() {
@@ -154,7 +225,7 @@ export class AudioEffects {
             const audioFolder = this.pane.addFolder({ title: 'audio' });
 
             const playBtn = audioFolder.addButton({ title: 'play' });
-            playBtn.on('click', () => Tone.Transport.start());
+            playBtn.on('click', () =>this.start());
 
             const stopBtn = audioFolder.addButton({ title: 'stop' });
             stopBtn.on('click', () => Tone.Transport.stop());

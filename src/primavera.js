@@ -33,7 +33,7 @@ export class Primavera {
         up: vec3.fromValues(0, 1, 0)
     };
 
-    animate = true;
+    animate = false;
 
     plantSettings = {
         showGuides: false
@@ -43,8 +43,12 @@ export class Primavera {
         this.canvas = canvas;
         this.pane = pane;
         this.oninit = oninit;
+    }
 
+    start() {
         this.#init();
+        this.animate = true;
+        this.audioEffects.start();
     }
 
     resize() {
@@ -136,7 +140,7 @@ export class Primavera {
         // final composition pass with the vessel front surface
         gl.clearColor(1, 1, 1, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        //this.#renderTitleRibbon();
+        this.#renderTitleRibbon();
         this.#renderVessel(false);
     }
 
@@ -376,7 +380,8 @@ export class Primavera {
 
         this.audioEffects = new AudioEffects(this.pane);
         this.plant.onLeafGrow = (leafIndex) => this.audioEffects.onLeafGrow(leafIndex);
-        //this.plant.onPlantGrow = () => this.audioEffects.onPlantGrow();
+        this.plant.onPlantGrowStart = () => this.audioEffects.onPlantGrowStart();
+        this.plant.onPlantGrowEnd = () => this.audioEffects.onPlantGrowEnd();
 
         if (this.oninit) this.oninit(this);
     }

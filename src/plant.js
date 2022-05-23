@@ -19,7 +19,8 @@ export class Plant {
 
     onLeafGrow;
     onLeafWither;
-    onPlantGrow;
+    onPlantGrowStart;
+    onPlantGrowEnd;
 
     constructor(
         context,
@@ -92,7 +93,7 @@ export class Plant {
         this.#generateStem();
         this.#generateLeaves(frames);
 
-        if (this.onPlantGrow) this.onPlantGrow();
+        if (this.onPlantGrowStart) this.onPlantGrowStart();
     }
 
     update(frames) {
@@ -271,6 +272,7 @@ export class Plant {
         // reset the growth animation
         this.startFrame = frames;
         this.leafAnimationStartNdx = -1;
+        this.growthEndEventFired = false;
     }
 
     #updateLeaves(frames) {
@@ -282,6 +284,7 @@ export class Plant {
         const enterTransitionDuration = 0.2;
         const leaveTransitionDuration = 0.2;
         const jitterStrength = 0.5;
+        const grownLeafCount = 0;
         
         for(let i = 0; i < numInstances; ++i) {
             const leafDuration = this.leafInstances.animationParams[i].duration;
@@ -294,6 +297,9 @@ export class Plant {
                 this.leafAnimationStartNdx = i;
                 this.onLeafGrow(i);
             }
+
+            if (t > enterTransitionDuration)
+                grownLeafCount++;
 
             // the scale t value (0...1): goes from 0 to 1 and then back from 1 to 0
             let scale = t;
@@ -320,6 +326,11 @@ export class Plant {
 
             // apply the matrix to the instance matrix
             mat4.copy(this.leafInstances.matrices[i], matrix);
+        }
+
+        if (!this.growthEndEventFired && grownLeafCount === numInstances) {
+            if (this.onPlantGrowEnd) this.onPlantGrowEnd();
+            this.growthEndEventFired = true;
         }
 
         // upload the instance matrix buffer

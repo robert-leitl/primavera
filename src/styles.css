@@ -20,19 +20,14 @@ canvas {
 
 #start-button {
     z-index: 2;
-    width: 12rem;
-    height: 20rem;
     cursor: pointer;
     text-transform: uppercase;
-    letter-spacing: -0.05em;
+    letter-spacing: -.05em;
     color: #222;
     background-color: #fff;
-    background-image: url(assets/start-button.svg);
-    background-position: top;
-    background-repeat: no-repeat;
-    border: none;
+    border: 4px solid #222;
     justify-content: center;
-    align-items: self-end;
+    align-items: center;
     font-family: Bodoni MT, Didot, Didot LT STD, Hoefler Text, Garamond, Times New Roman, serif;
     font-size: 2.2em;
     line-height: .9em;
@@ -41,4 +36,8 @@ canvas {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    width: 7em;
+    padding: 1em;
+    padding-top: 1.1em;
+    border-radius: 1.7em;
 }

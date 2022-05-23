@@ -284,7 +284,7 @@ export class Plant {
         const enterTransitionDuration = 0.2;
         const leaveTransitionDuration = 0.2;
         const jitterStrength = 0.5;
-        const grownLeafCount = 0;
+        let grownLeafCount = 0;
         
         for(let i = 0; i < numInstances; ++i) {
             const leafDuration = this.leafInstances.animationParams[i].duration;

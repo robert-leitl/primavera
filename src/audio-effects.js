@@ -37,14 +37,18 @@ export class AudioEffects {
 
         const rootNote = this.MELODY_KEY_NOTE;
 
+
+        const compressor = new Tone.Compressor().toDestination(-30, 3);
+        const destination = compressor;
+
+
         this.melodyInstrument = new Tone.PluckSynth({
             volume: -1,
             resonance: .95
         });
         const reverb = new Tone.Reverb(8);
 
-        this.melodyInstrument.chain(reverb);
-        reverb.toDestination();
+        this.melodyInstrument.chain(reverb, destination);
 
         const chordNotes = [
             ...this.min7ChordIntervals.map(i => this.MIDI_NUM_NAMES[i + rootNote + 24]),
@@ -82,7 +86,7 @@ export class AudioEffects {
                     octaves: 4
                 }
             }
-        ).toDestination();
+        ).connect(destination);
         const chordProgression = [
             ...this.min7ChordIntervals.map(i => [0, this.MIDI_NUM_NAMES[i + rootNote]]),
             ...this.maj7ChordIntervals.map(i => ['1:0:0', this.MIDI_NUM_NAMES[i + rootNote - 2]]),
@@ -117,8 +121,7 @@ export class AudioEffects {
             octaves: 5
         });
 
-        this.kickInstrument.chain(filter, freeverb);
-        freeverb.toDestination();
+        this.kickInstrument.chain(filter, freeverb, destination);
 
         this.kickPart = new Tone.Part((time, notes) => {
             this.kickInstrument.triggerAttackRelease(notes, '8n', time);
@@ -134,7 +137,7 @@ export class AudioEffects {
 
         var lowPass = new Tone.Filter({
             frequency: 1000,
-        }).toDestination();
+        }).connect(destination);
     
         this.hiHatInstrument = new Tone.NoiseSynth({
             volume : -14,
@@ -171,13 +174,13 @@ export class AudioEffects {
         var trapLowPass = new Tone.Filter({
             frequency: 200,
             type: 'lowpass'
-        }).toDestination();
+        }).connect(destination);
         this.trapInstrument = new Tone.NoiseSynth({
             volume : -24,
             noise: {
                 type: 'pink'
             }
-        }).connect(trapLowPass).toDestination();
+        }).connect(trapLowPass).connect(destination);
         this.trapPart = new Tone.Part((time, notes) => {
             this.trapInstrument.triggerAttack(time);
         }, [
@@ -192,7 +195,6 @@ export class AudioEffects {
         this.trapPart.loop = true;
         this.trapPart.loopEnd = '4:0:0';
         this.trapPart.playbackRate = 4;
-
 
         Tone.Transport.bpm.value = 60;
         Tone.Transport.stop();

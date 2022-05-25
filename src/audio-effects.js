@@ -38,7 +38,7 @@ export class AudioEffects {
         const rootNote = this.MELODY_KEY_NOTE;
 
 
-        const compressor = new Tone.Compressor(-24, 12).toDestination();
+        const compressor = new Tone.Compressor().toDestination();
         const destination = compressor;
 
 

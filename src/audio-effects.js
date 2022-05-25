@@ -39,6 +39,7 @@ export class AudioEffects {
 
 
         const compressor = new Tone.Compressor().toDestination();
+        console.log(Tone.Compressor.getDefaults());
         const destination = compressor;
 
 
@@ -217,7 +218,7 @@ export class AudioEffects {
     }
 
     start() {
-        Tone.Transport.start();
+        setTimeout(() => Tone.Transport.start(), 500);
     }
 
     set kick(value) {

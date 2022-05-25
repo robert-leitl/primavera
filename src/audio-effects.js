@@ -25,6 +25,12 @@ export class AudioEffects {
     melodyNoteIntervals = [];
     randomNotesBuffer = [];
     randomWalkIndex = 12;
+
+    _kick = true;
+    _hiHat = true;
+    _harmony = true;
+    _melody = true;
+    _trap = true;
     
     constructor(pane) {
         this.pane = pane;
@@ -35,16 +41,11 @@ export class AudioEffects {
             volume: -1,
             resonance: .95
         });
-        const melodyLowPassFilter = new Tone.Filter(600, 'lowpass');
-        const tremolo = new Tone.Tremolo(1000, .45);
-        const feedbackDelay = new Tone.FeedbackDelay('8n', 0.1);
         const reverb = new Tone.Reverb(8);
-        const autoPanner = new Tone.AutoPanner("1n");
 
-        this.melodyInstrument.chain(reverb, autoPanner);
-        tremolo.toDestination();
-        feedbackDelay.connect(melodyLowPassFilter);
-        autoPanner.toDestination();
+        this.melodyInstrument.chain(reverb);
+        reverb.toDestination();
+
         const chordNotes = [
             ...this.min7ChordIntervals.map(i => this.MIDI_NUM_NAMES[i + rootNote + 24]),
             ...this.maj7ChordIntervals.map(i => this.MIDI_NUM_NAMES[i + rootNote + 24 - 2]),
@@ -55,8 +56,6 @@ export class AudioEffects {
             this.melodyInstrument.triggerAttackRelease(note, '1n', time);
         }, chordNotes, 'randomOnce').start('1:0:0');
         this.melodyPattern.loop = true;
-
-
 
 
 
@@ -108,7 +107,7 @@ export class AudioEffects {
             roomSize: 0.95,
             dampening: 100
         });
-        const kickInstrument = new Tone.MembraneSynth({
+        this.kickInstrument = new Tone.MembraneSynth({
             volume: -1,
             envelope: {
                 attack: 0.005,
@@ -118,12 +117,11 @@ export class AudioEffects {
             octaves: 5
         });
 
-        kickInstrument.connect(filter);
-        filter.connect(freeverb);
+        this.kickInstrument.chain(filter, freeverb);
         freeverb.toDestination();
 
         this.kickPart = new Tone.Part((time, notes) => {
-            kickInstrument.triggerAttackRelease(notes, '8n', time);
+            this.kickInstrument.triggerAttackRelease(notes, '8n', time);
         }, [[0, 'D3']] ).start(0);
         this.kickPart.loop = true;
         this.kickPart.loopEnd = '0:2:0';
@@ -138,7 +136,7 @@ export class AudioEffects {
             frequency: 1000,
         }).toDestination();
     
-        var hiHatInstrument = new Tone.NoiseSynth({
+        this.hiHatInstrument = new Tone.NoiseSynth({
             volume : -14,
             filter: {
                 Q: 1
@@ -158,7 +156,7 @@ export class AudioEffects {
         }).connect(lowPass);
 
         this.hiHatPart = new Tone.Part((time, notes) => {
-            hiHatInstrument.triggerAttack(time);
+            this.hiHatInstrument.triggerAttack(time);
         }, [
             '0:0:0',
             '0:1:0',
@@ -174,14 +172,14 @@ export class AudioEffects {
             frequency: 200,
             type: 'lowpass'
         }).toDestination();
-        var trapInstrument = new Tone.NoiseSynth({
+        this.trapInstrument = new Tone.NoiseSynth({
             volume : -24,
             noise: {
                 type: 'pink'
             }
         }).connect(trapLowPass).toDestination();
         this.trapPart = new Tone.Part((time, notes) => {
-            trapInstrument.triggerAttack(time);
+            this.trapInstrument.triggerAttack(time);
         }, [
             '0:0:0',
             '0:0:1',
@@ -220,6 +218,58 @@ export class AudioEffects {
         Tone.Transport.start();
     }
 
+    set kick(value) {
+        this._kick = value;
+        this.#updatePart(this.kickPart, this._kick);
+    }
+
+    get kick() {
+        return this._kick;
+    }
+
+    set melody(value) {
+        this._melody = value;
+        this.#updatePart(this.melodyPattern, this._melody);
+    }
+
+    get melody() {
+        return this._melody;
+    }
+
+    set harmony(value) {
+        this._harmony = value;
+        this.#updatePart(this.harmonyPart, this._harmony);
+    }
+
+    get harmony() {
+        return this._harmony;
+    }
+
+    set hiHat(value) {
+        this._hiHat = value;
+        this.#updatePart(this.hiHatPart, this._hiHat);
+    }
+
+    get hiHat() {
+        return this._hiHat;
+    }
+
+    set trap(value) {
+        this._trap = value;
+        this.#updatePart(this.trapPart, this._trap);
+    }
+
+    get trap() {
+        return this._trap;
+    }
+
+    #updatePart(part, play) {
+        if (play) 
+            part.start(Tone.now());
+        else 
+            part.stop();
+    }
+
     #initTweakpane() {
         if (this.pane) {
             const audioFolder = this.pane.addFolder({ title: 'audio' });
@@ -229,6 +279,21 @@ export class AudioEffects {
 
             const stopBtn = audioFolder.addButton({ title: 'stop' });
             stopBtn.on('click', () => Tone.Transport.stop());
+
+            const volumeSlider = audioFolder.addBlade({
+                view: 'slider',
+                label: 'volume',
+                min: -60,
+                max: 0,
+                value: Tone.getDestination().volume.value,
+            });
+            volumeSlider.on('change', e => Tone.getDestination().volume.value = e.value);
+
+            audioFolder.addInput(this, 'kick');
+            audioFolder.addInput(this, 'melody');
+            audioFolder.addInput(this, 'harmony');
+            audioFolder.addInput(this, 'hiHat');
+            audioFolder.addInput(this, 'trap');
         }
     }
 

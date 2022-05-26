@@ -44,7 +44,7 @@ export class AudioEffects {
 
 
         this.melodyInstrument = new Tone.PluckSynth({
-            volume: -1,
+            volume: -25,
             resonance: .95
         });
         const reverb = new Tone.Reverb(8);
@@ -67,7 +67,7 @@ export class AudioEffects {
 
         this.harmonyInstrument = new Tone.PolySynth(
             Tone.MonoSynth, {
-                volume: -22,
+                volume: -40,
                 oscillator: {
                     type: 'sawtooth'
                 },
@@ -107,13 +107,9 @@ export class AudioEffects {
 
 
         const filter = new Tone.Filter(100, 'lowpass');
-        const freeverb = new Tone.Freeverb({
-            wet: 0.2,
-            roomSize: 0.95,
-            dampening: 100
-        });
+        const kickReverb = new Tone.Reverb(30);
         this.kickInstrument = new Tone.MembraneSynth({
-            volume: -1,
+            volume: -20,
             envelope: {
                 attack: 0.005,
                 decay: 0.8,
@@ -122,7 +118,7 @@ export class AudioEffects {
             octaves: 5
         });
 
-        this.kickInstrument.chain(filter, freeverb, destination);
+        this.kickInstrument.chain(filter, kickReverb, destination);
 
         this.kickPart = new Tone.Part((time, notes) => {
             this.kickInstrument.triggerAttackRelease(notes, '8n', time);
@@ -141,7 +137,7 @@ export class AudioEffects {
         }).connect(destination);
     
         this.hiHatInstrument = new Tone.NoiseSynth({
-            volume : -14,
+            volume : -30,
             filter: {
                 Q: 1
             },
@@ -177,7 +173,7 @@ export class AudioEffects {
             type: 'lowpass'
         }).connect(destination);
         this.trapInstrument = new Tone.NoiseSynth({
-            volume : -24,
+            volume : -40,
             noise: {
                 type: 'pink'
             }
@@ -283,7 +279,7 @@ export class AudioEffects {
             const stopBtn = audioFolder.addButton({ title: 'stop' });
             stopBtn.on('click', () => Tone.Transport.stop());
 
-            const volumeSlider = audioFolder.addBlade({
+            /*const volumeSlider = audioFolder.addBlade({
                 view: 'slider',
                 label: 'volume',
                 min: -60,
@@ -296,7 +292,7 @@ export class AudioEffects {
             audioFolder.addInput(this, 'melody');
             audioFolder.addInput(this, 'harmony');
             audioFolder.addInput(this, 'hiHat');
-            audioFolder.addInput(this, 'trap');
+            audioFolder.addInput(this, 'trap');*/
         }
     }
 

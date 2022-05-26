@@ -33,7 +33,7 @@ export class Primavera {
         up: vec3.fromValues(0, 1, 0)
     };
 
-    animate = false;
+    animate = true;
 
     plantSettings = {
         showGuides: false
@@ -47,7 +47,6 @@ export class Primavera {
 
     start() {
         this.#init();
-        this.animate = true;
         this.audioEffects.start();
     }
 
@@ -519,11 +518,11 @@ export class Primavera {
                 minValue: 0
             });
 
-            this.pane.addInput(this, 'animate', { label: 'animate' });
+            this.pane.addInput(this, 'animate', { label: 'animate plant' });
 
-            const cameraFolder = this.pane.addFolder({ title: 'Camera' });
-            this.#createTweakpaneSlider(cameraFolder, this.camera, 'near', 'near', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
-            this.#createTweakpaneSlider(cameraFolder, this.camera, 'far', 'far', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
+            //const cameraFolder = this.pane.addFolder({ title: 'Camera' });
+            //this.#createTweakpaneSlider(cameraFolder, this.camera, 'near', 'near', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
+            //this.#createTweakpaneSlider(cameraFolder, this.camera, 'far', 'far', 1, maxFar, null, () => this.#updateProjectionMatrix(this.gl));
 
             /*const particlesFolder = this.pane.addFolder({ title: 'Particles' });
             this.#createTweakpaneSlider(particlesFolder, this.particles.settings, 'velocity', 'velocity', 0, 10, null);

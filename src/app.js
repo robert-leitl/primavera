@@ -22,7 +22,7 @@ window.addEventListener('load', () => {
 
     let pane;
     if (DEBUG) {
-        pane = new Pane({ title: 'Settings' });
+        pane = new Pane({ title: 'Settings', expanded: false});
         pane.registerPlugin(EssentialsPlugin);
     }
 

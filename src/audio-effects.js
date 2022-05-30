@@ -39,7 +39,6 @@ export class AudioEffects {
 
 
         const compressor = new Tone.Compressor().toDestination();
-        console.log(Tone.Compressor.getDefaults());
         const destination = compressor;
 
 
@@ -67,7 +66,7 @@ export class AudioEffects {
 
         this.harmonyInstrument = new Tone.PolySynth(
             Tone.MonoSynth, {
-                volume: -40,
+                volume: -46,
                 oscillator: {
                     type: 'sawtooth'
                 },
@@ -137,7 +136,7 @@ export class AudioEffects {
         }).connect(destination);
     
         this.hiHatInstrument = new Tone.NoiseSynth({
-            volume : -30,
+            volume : -32,
             filter: {
                 Q: 1
             },
@@ -173,7 +172,7 @@ export class AudioEffects {
             type: 'lowpass'
         }).connect(destination);
         this.trapInstrument = new Tone.NoiseSynth({
-            volume : -40,
+            volume : -42,
             noise: {
                 type: 'pink'
             }
